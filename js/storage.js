@@ -6,10 +6,10 @@ const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxcF-joWiInjdBt9Ea2
 
 const StorageManager = (() => {
   const KEYS = {
-    DEVICE_CACHE: "moyun_device_cache_v1",
-    ACCOUNTS_DB: "moyun_accounts_db_v1",
-    ACTIVE_USER: "cloud_user",
-    ACTIVE_HASH: "cloud_hash"
+    GUEST_CACHE: "moyun_guest_cache_v2",
+    ACCOUNTS_DB: "moyun_accounts_db_v2",
+    ACTIVE_USER: "moyun_cloud_user_v2",
+    ACTIVE_HASH: "moyun_cloud_hash_v2"
   };
 
   let syncTimer = null;
@@ -43,16 +43,19 @@ const StorageManager = (() => {
   }
 
   function isCloudConfigured() {
-    return GAS_API_URL && GAS_API_URL.startsWith("https://");
+    return Boolean(GAS_API_URL && GAS_API_URL.startsWith("https://"));
   }
 
-  async function callGAS(payload) {
+  async function callGAS(payload, useKeepAlive = false) {
     if (!isCloudConfigured()) {
       return { success: false, offline: true, message: "尚未設定 GAS_API_URL，目前僅使用本機暫存" };
     }
     const response = await fetch(GAS_API_URL, {
       method: "POST",
-      body: JSON.stringify(payload)
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+      redirect: "follow",
+      keepalive: useKeepAlive
     });
     return await response.json();
   }
@@ -63,11 +66,26 @@ const StorageManager = (() => {
       activeStage: 1,
       openedChests: [],
       unlockedChars: [],
+      unlockedComponents: GameData.getStarterComponents(),
       coins: 120,
       purchasedHints: {},
       paymentHistory: [],
       updatedAt: new Date().toISOString()
     };
+  }
+
+  function normalizeProgress(raw) {
+    const base = createDefaultProgress();
+    const merged = { ...base, ...(raw || {}) };
+    // 確保已解鎖階級的所有活字部件皆存在（相容舊存檔）
+    const requiredComps = GameData.getComponentsUpToStage(merged.maxStageUnlocked || 1);
+    const compSet = new Set([...(merged.unlockedComponents || []), ...requiredComps]);
+    merged.unlockedComponents = Array.from(compSet);
+    if (!Array.isArray(merged.unlockedChars)) merged.unlockedChars = [];
+    if (!Array.isArray(merged.openedChests)) merged.openedChests = [];
+    if (!merged.purchasedHints || typeof merged.purchasedHints !== "object") merged.purchasedHints = {};
+    if (!Array.isArray(merged.paymentHistory)) merged.paymentHistory = [];
+    return merged;
   }
 
   function getAccountsDB() {
@@ -95,13 +113,13 @@ const StorageManager = (() => {
     if (activeUser) {
       const db = getAccountsDB();
       if (db[activeUser] && db[activeUser].progress) {
-        return { ...createDefaultProgress(), ...db[activeUser].progress };
+        return normalizeProgress(db[activeUser].progress);
       }
     }
     try {
-      const cached = JSON.parse(localStorage.getItem(KEYS.DEVICE_CACHE));
+      const cached = JSON.parse(localStorage.getItem(KEYS.GUEST_CACHE));
       if (cached) {
-        return { ...createDefaultProgress(), ...cached };
+        return normalizeProgress(cached);
       }
     } catch (e) {
       console.warn("讀取裝置暫存失敗，建立新存檔", e);
@@ -124,11 +142,10 @@ const StorageManager = (() => {
         passwordHash
       });
       if (res.success && res.userData) {
-        const merged = { ...createDefaultProgress(), ...res.userData };
+        const merged = normalizeProgress(res.userData);
         const db = getAccountsDB();
         db[username] = { hash: passwordHash, progress: merged };
         saveAccountsDB(db);
-        localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(merged));
         notifySyncStatus("synced", "雲端已同步");
         return merged;
       } else {
@@ -141,7 +158,7 @@ const StorageManager = (() => {
     }
   }
 
-  async function saveCloudDataNow(userDataObj, receipt = null) {
+  async function saveCloudDataNow(userDataObj, receipt = null, useKeepAlive = false) {
     const username = localStorage.getItem(KEYS.ACTIVE_USER);
     const passwordHash = localStorage.getItem(KEYS.ACTIVE_HASH);
     if (!username || !passwordHash) {
@@ -155,13 +172,16 @@ const StorageManager = (() => {
 
     notifySyncStatus("syncing", "同步雲端中...");
     try {
-      const res = await callGAS({
-        action: "save",
-        username,
-        passwordHash,
-        userData: userDataObj,
-        receipt
-      });
+      const res = await callGAS(
+        {
+          action: "save",
+          username,
+          passwordHash,
+          userData: userDataObj,
+          receipt
+        },
+        useKeepAlive
+      );
       if (res.success) {
         notifySyncStatus("synced", "雲端已同步");
       } else {
@@ -176,10 +196,9 @@ const StorageManager = (() => {
 
   function saveProgress(progress, options = {}) {
     progress.updatedAt = new Date().toISOString();
-    localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(progress));
-
     const activeUser = getActiveUsername();
     const activeHash = localStorage.getItem(KEYS.ACTIVE_HASH);
+
     if (activeUser) {
       const db = getAccountsDB();
       db[activeUser] = {
@@ -187,22 +206,26 @@ const StorageManager = (() => {
         progress
       };
       saveAccountsDB(db);
+    } else {
+      localStorage.setItem(KEYS.GUEST_CACHE, JSON.stringify(progress));
+      notifySyncStatus("local", "本機暫存");
+      return;
     }
 
-    if (!activeUser || !activeHash) {
+    if (!activeHash) {
       notifySyncStatus("local", "本機暫存");
       return;
     }
 
     if (options.immediate) {
       clearTimeout(syncTimer);
-      saveCloudDataNow(progress, options.receipt || null);
+      saveCloudDataNow(progress, options.receipt || null, Boolean(options.keepalive));
     } else {
       notifySyncStatus("syncing", "待同步...");
       clearTimeout(syncTimer);
       syncTimer = setTimeout(() => {
-        saveCloudDataNow(progress, null);
-      }, 1500);
+        saveCloudDataNow(progress, null, false);
+      }, 1200);
     }
   }
 
@@ -213,7 +236,7 @@ const StorageManager = (() => {
     }
 
     const passwordHash = await hashPassword(password);
-    const payloadData = { ...createDefaultProgress(), ...initialData, updatedAt: new Date().toISOString() };
+    const payloadData = normalizeProgress({ ...initialData, updatedAt: new Date().toISOString() });
 
     if (isCloudConfigured()) {
       notifySyncStatus("syncing", "註冊雲端中...");
@@ -239,7 +262,6 @@ const StorageManager = (() => {
     const db = getAccountsDB();
     db[cleanName] = { hash: passwordHash, createdAt: new Date().toISOString(), progress: payloadData };
     saveAccountsDB(db);
-    localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(payloadData));
 
     notifySyncStatus(isCloudConfigured() ? "synced" : "local", isCloudConfigured() ? "雲端已同步" : "本機已存");
     return {
@@ -272,14 +294,13 @@ const StorageManager = (() => {
           notifySyncStatus("error", "登入失敗");
           return { ok: false, message: res.message || "帳號或密碼錯誤" };
         }
-        const loaded = { ...createDefaultProgress(), ...(res.userData || {}) };
+        const loaded = normalizeProgress(res.userData || {});
         localStorage.setItem(KEYS.ACTIVE_USER, cleanName);
         localStorage.setItem(KEYS.ACTIVE_HASH, passwordHash);
 
         const db = getAccountsDB();
         db[cleanName] = { hash: passwordHash, progress: loaded };
         saveAccountsDB(db);
-        localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(loaded));
 
         notifySyncStatus("synced", "雲端已同步");
         return {
@@ -303,19 +324,19 @@ const StorageManager = (() => {
     }
     localStorage.setItem(KEYS.ACTIVE_USER, cleanName);
     localStorage.setItem(KEYS.ACTIVE_HASH, passwordHash);
-    const loaded = { ...createDefaultProgress(), ...db[cleanName].progress };
-    localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(loaded));
+    const loaded = normalizeProgress(db[cleanName].progress);
     notifySyncStatus("local", "本機已存");
     return { ok: true, username: cleanName, progress: loaded, message: `已載入本機帳號「${cleanName}」。` };
   }
 
   function logoutToGuest() {
+    clearTimeout(syncTimer);
     localStorage.removeItem(KEYS.ACTIVE_USER);
     localStorage.removeItem(KEYS.ACTIVE_HASH);
     notifySyncStatus("local", "本機暫存");
     try {
-      const cached = JSON.parse(localStorage.getItem(KEYS.DEVICE_CACHE));
-      return cached ? { ...createDefaultProgress(), ...cached } : createDefaultProgress();
+      const cached = JSON.parse(localStorage.getItem(KEYS.GUEST_CACHE));
+      return cached ? normalizeProgress(cached) : createDefaultProgress();
     } catch (e) {
       return createDefaultProgress();
     }
@@ -335,7 +356,7 @@ const StorageManager = (() => {
   function exportBackupJSON(progress) {
     const payload = {
       app: "墨韻活字工坊",
-      version: "1.1",
+      version: "2.0",
       user: getActiveUsername() || "guest",
       exportedAt: new Date().toISOString(),
       progress
@@ -358,7 +379,7 @@ const StorageManager = (() => {
           callback({ ok: false, message: "無效的存檔檔案格式。" });
           return;
         }
-        const merged = { ...createDefaultProgress(), ...parsed.progress };
+        const merged = normalizeProgress(parsed.progress);
         saveProgress(merged, { immediate: true });
         callback({ ok: true, progress: merged, message: "進度備份檔匯入並同步成功！" });
       } catch (err) {
