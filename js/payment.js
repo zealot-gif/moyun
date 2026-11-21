@@ -9,11 +9,12 @@ const PaymentManager = (() => {
     jcb:  { number: "3530 1113 3330 0000", name: "CHEN JUN HONG", exp: "05/30", cvv: "358" }
   };
 
+  // 若串接正式金流（如 Stripe / TapPay / ECPay），可填入後端授權端點
   const PAYMENT_GATEWAY_ENDPOINT = null;
 
   function detectCardNetwork(rawNumber) {
     const digits = rawNumber.replace(/\D/g, "");
-    if (!digits) return { network: "UNKNOWN", label: "VISA / MC / JCB", cssClass: "" };
+    if (!digits) return { network: "UNKNOWN", label: "CARD", cssClass: "" };
 
     if (/^4/.test(digits)) {
       return { network: "VISA", label: "VISA", cssClass: "network-visa" };
@@ -29,12 +30,12 @@ const PaymentManager = (() => {
       return { network: "JCB", label: "JCB", cssClass: "network-jcb" };
     }
 
-    return { network: "UNSUPPORTED", label: "僅支援 VISA / MC / JCB", cssClass: "" };
+    return { network: "UNSUPPORTED", label: "不支援卡別", cssClass: "" };
   }
 
   function validateLuhn(rawNumber) {
     const digits = rawNumber.replace(/\D/g, "");
-    if (digits.length < 15 || digits.length > 16) return false;
+    if (digits.length < 13 || digits.length > 19) return false;
     let sum = 0;
     let doubleUp = false;
     for (let i = digits.length - 1; i >= 0; i--) {
@@ -120,7 +121,7 @@ const PaymentManager = (() => {
         return { ok: false, message: "金流閘道連線異常，請稍後再試。" };
       }
     } else {
-      await new Promise((resolve) => setTimeout(resolve, 650));
+      await new Promise((resolve) => setTimeout(resolve, 600));
     }
 
     const receipt = {
