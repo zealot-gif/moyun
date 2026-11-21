@@ -4,7 +4,7 @@
 
 (() => {
   // 測試刷卡專用密碼（可自行修改）
-  const TEST_CARD_PASSCODE = "8888";
+  const TEST_CARD_PASSCODE = "jesuisbeau";
 
   let state = StorageManager.loadProgress();
   let currentLayout = "lr"; // lr | tb | tri | quad | enc
