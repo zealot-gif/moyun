@@ -255,6 +255,189 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "三日成晶，光輝璀璨"
+      },
+      {
+        "char": "杰",
+        "layout": "tb",
+        "recipes": [
+          [
+            "木",
+            "火"
+          ]
+        ],
+        "hint": "木下有火（火作灬），豪傑俊杰"
+      },
+      {
+        "char": "伈",
+        "layout": "lr",
+        "recipes": [
+          [
+            "人",
+            "心"
+          ]
+        ],
+        "hint": "人心惶恐（亻 + 心），忐忑之貌"
+      },
+      {
+        "char": "琳",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "林"
+          ]
+        ],
+        "hint": "水光林影，美玉琳琅（注：通作王旁，此處從水林）"
+      },
+      {
+        "char": "姦",
+        "layout": "tri",
+        "recipes": [
+          [
+            "女",
+            "女",
+            "女"
+          ]
+        ],
+        "hint": "三女相聚，奸邪私通"
+      },
+      {
+        "char": "汩",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "日"
+          ]
+        ],
+        "hint": "水流之貌，汩汩流淌（注意右為「日」非「曰」）"
+      },
+      {
+        "char": "汝",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "女"
+          ]
+        ],
+        "hint": "古水名，亦作代詞「你」"
+      },
+      {
+        "char": "晏",
+        "layout": "tb",
+        "recipes": [
+          [
+            "日",
+            "安"
+          ],
+          [
+            "日",
+            "宀",
+            "女"
+          ]
+        ],
+        "hint": "天清日安，海晏河清"
+      },
+      {
+        "char": "閑",
+        "layout": "enc",
+        "recipes": [
+          [
+            "門",
+            "木"
+          ]
+        ],
+        "hint": "門中有木為柵欄，防範閑習"
+      },
+      {
+        "char": "閒",
+        "layout": "enc",
+        "recipes": [
+          [
+            "門",
+            "月"
+          ]
+        ],
+        "hint": "月光灑入門縫，空閒悠閒"
+      },
+      {
+        "char": "捫",
+        "layout": "lr",
+        "recipes": [
+          [
+            "手",
+            "門"
+          ]
+        ],
+        "hint": "以手撫摸，捫心自問"
+      },
+      {
+        "char": "們",
+        "layout": "lr",
+        "recipes": [
+          [
+            "人",
+            "門"
+          ]
+        ],
+        "hint": "眾人複數，我們你們"
+      },
+      {
+        "char": "佃",
+        "layout": "lr",
+        "recipes": [
+          [
+            "人",
+            "田"
+          ]
+        ],
+        "hint": "租種田地，佃農"
+      },
+      {
+        "char": "宕",
+        "layout": "tb",
+        "recipes": [
+          [
+            "宀",
+            "石"
+          ]
+        ],
+        "hint": "屋下洞石，延宕跌宕"
+      },
+      {
+        "char": "宋",
+        "layout": "tb",
+        "recipes": [
+          [
+            "宀",
+            "木"
+          ]
+        ],
+        "hint": "屋宇居所，宋朝姓氏「宋」"
+      },
+      {
+        "char": "瞐",
+        "layout": "tri",
+        "recipes": [
+          [
+            "目",
+            "目",
+            "目"
+          ]
+        ],
+        "hint": "三目相聚，目深而美"
+      },
+      {
+        "char": "訕",
+        "layout": "lr",
+        "recipes": [
+          [
+            "言",
+            "山"
+          ]
+        ],
+        "hint": "出言譏諷，訕笑搭訕"
       }
     ]
   },
@@ -420,6 +603,33 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "水入心脾，沁人心肺"
+      },
+      {
+        "char": "采",
+        "layout": "tb",
+        "recipes": [
+          [
+            "手",
+            "木"
+          ]
+        ],
+        "hint": "以手摘取林木果實，風采文采"
+      },
+      {
+        "char": "採",
+        "layout": "lr",
+        "recipes": [
+          [
+            "手",
+            "采"
+          ],
+          [
+            "手",
+            "手",
+            "木"
+          ]
+        ],
+        "hint": "伸手摘取，採集採用"
       }
     ]
   },
@@ -558,6 +768,22 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "三石成磊，光明磊落"
+      },
+      {
+        "char": "洄",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "回"
+          ],
+          [
+            "水",
+            "囗",
+            "口"
+          ]
+        ],
+        "hint": "水流迴旋，洄游"
       }
     ]
   },
@@ -733,6 +959,33 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "山崖巨石，岩石峭壁"
+      },
+      {
+        "char": "迴",
+        "layout": "enc",
+        "recipes": [
+          [
+            "辶",
+            "回"
+          ],
+          [
+            "辶",
+            "囗",
+            "口"
+          ]
+        ],
+        "hint": "曲折返回，迴響輪迴"
+      },
+      {
+        "char": "泉",
+        "layout": "tb",
+        "recipes": [
+          [
+            "白",
+            "水"
+          ]
+        ],
+        "hint": "清白之水湧出，甘泉清泉"
       }
     ]
   },
@@ -864,6 +1117,51 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "正體字「這」，由辵部與言組成"
+      },
+      {
+        "char": "昊",
+        "layout": "tb",
+        "recipes": [
+          [
+            "日",
+            "天"
+          ]
+        ],
+        "hint": "夏日廣大之天，昊天"
+      },
+      {
+        "char": "仔",
+        "layout": "lr",
+        "recipes": [
+          [
+            "人",
+            "子"
+          ]
+        ],
+        "hint": "細心謹慎，仔細公仔"
+      },
+      {
+        "char": "訬",
+        "layout": "lr",
+        "recipes": [
+          [
+            "言",
+            "少"
+          ]
+        ],
+        "hint": "言語喧擾（言 + 少）"
+      },
+      {
+        "char": "渺",
+        "layout": "tri",
+        "recipes": [
+          [
+            "水",
+            "目",
+            "少"
+          ]
+        ],
+        "hint": "水波浩大遠望微茫（氵 + 目 + 少），渺茫飄渺"
       }
     ]
   },
@@ -988,6 +1286,82 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "雨氣凝於草木之上，秋霜皎潔"
+      },
+      {
+        "char": "苜",
+        "layout": "tb",
+        "recipes": [
+          [
+            "艹",
+            "目"
+          ]
+        ],
+        "hint": "牧草之名，苜蓿"
+      },
+      {
+        "char": "芯",
+        "layout": "tb",
+        "recipes": [
+          [
+            "艹",
+            "心"
+          ]
+        ],
+        "hint": "燈草中心，燈芯晶片"
+      },
+      {
+        "char": "霖",
+        "layout": "tb",
+        "recipes": [
+          [
+            "雨",
+            "林"
+          ],
+          [
+            "雨",
+            "木",
+            "木"
+          ]
+        ],
+        "hint": "連日甘雨潤澤山林，甘霖"
+      },
+      {
+        "char": "秒",
+        "layout": "lr",
+        "recipes": [
+          [
+            "禾",
+            "少"
+          ]
+        ],
+        "hint": "禾芒細微，分秒必爭"
+      },
+      {
+        "char": "委",
+        "layout": "tb",
+        "recipes": [
+          [
+            "禾",
+            "女"
+          ]
+        ],
+        "hint": "禾穀垂穗柔順，委託委婉"
+      },
+      {
+        "char": "莎",
+        "layout": "tb",
+        "recipes": [
+          [
+            "艹",
+            "沙"
+          ],
+          [
+            "艹",
+            "水",
+            "少"
+          ]
+        ],
+        "hint": "水邊香草，莎草莎士比亞"
       }
     ]
   },
@@ -1105,7 +1479,7 @@ const STAGES_DATA = [
         "hint": "門中有虫，八閩大地"
       },
       {
-        "char": "蠱",
+        "char": "蟲",
         "layout": "tri",
         "recipes": [
           [
@@ -1114,7 +1488,65 @@ const STAGES_DATA = [
             "虫"
           ]
         ],
-        "hint": "三虫相聚，神秘巫蠱"
+        "hint": "三虫相聚，昆蟲蟲豸"
+      },
+      {
+        "char": "驫",
+        "layout": "tri",
+        "recipes": [
+          [
+            "馬",
+            "馬",
+            "馬"
+          ]
+        ],
+        "hint": "三馬齊奔，眾馬奔騰"
+      },
+      {
+        "char": "羴",
+        "layout": "tri",
+        "recipes": [
+          [
+            "羊",
+            "羊",
+            "羊"
+          ]
+        ],
+        "hint": "三羊相聚，同「羶」字"
+      },
+      {
+        "char": "鱻",
+        "layout": "tri",
+        "recipes": [
+          [
+            "魚",
+            "魚",
+            "魚"
+          ]
+        ],
+        "hint": "三魚相聚，同「鮮」字"
+      },
+      {
+        "char": "碼",
+        "layout": "lr",
+        "recipes": [
+          [
+            "石",
+            "馬"
+          ]
+        ],
+        "hint": "計數籌碼，號碼密碼"
+      },
+      {
+        "char": "螞",
+        "layout": "lr",
+        "recipes": [
+          [
+            "虫",
+            "馬"
+          ]
+        ],
+        "hint": "群居小蟲，螞蟻螞蚱"
       }
     ]
   },
@@ -1343,6 +1775,28 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "言語計算，謀略計畫"
+      },
+      {
+        "char": "劣",
+        "layout": "tb",
+        "recipes": [
+          [
+            "少",
+            "力"
+          ]
+        ],
+        "hint": "力少氣弱，優劣惡劣"
+      },
+      {
+        "char": "汁",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "十"
+          ]
+        ],
+        "hint": "液體精華，果汁湯汁"
       }
     ]
   },
@@ -1491,6 +1945,116 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "合手抓取，掌握拿取"
+      },
+      {
+        "char": "淦",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "金"
+          ]
+        ],
+        "hint": "水入船中，水名「淦」"
+      },
+      {
+        "char": "洽",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "合"
+          ]
+        ],
+        "hint": "水澤相合，融洽接洽"
+      },
+      {
+        "char": "絲",
+        "layout": "lr",
+        "recipes": [
+          [
+            "糸",
+            "糸"
+          ]
+        ],
+        "hint": "雙糸相連，蠶絲絲線"
+      },
+      {
+        "char": "芡",
+        "layout": "tb",
+        "recipes": [
+          [
+            "艹",
+            "欠"
+          ]
+        ],
+        "hint": "水生草本，芡實勾芡"
+      },
+      {
+        "char": "倩",
+        "layout": "lr",
+        "recipes": [
+          [
+            "人",
+            "青"
+          ]
+        ],
+        "hint": "容貌美好，倩影"
+      },
+      {
+        "char": "菁",
+        "layout": "tb",
+        "recipes": [
+          [
+            "艹",
+            "青"
+          ]
+        ],
+        "hint": "草木茂盛精華，菁英"
+      },
+      {
+        "char": "睛",
+        "layout": "lr",
+        "recipes": [
+          [
+            "目",
+            "青"
+          ]
+        ],
+        "hint": "眼珠瞳仁，畫龍點睛"
+      },
+      {
+        "char": "箐",
+        "layout": "tb",
+        "recipes": [
+          [
+            "竹",
+            "青"
+          ]
+        ],
+        "hint": "山間竹林，箐林"
+      },
+      {
+        "char": "紗",
+        "layout": "lr",
+        "recipes": [
+          [
+            "糸",
+            "少"
+          ]
+        ],
+        "hint": "輕薄絲織品，紗布面紗"
+      },
+      {
+        "char": "鴿",
+        "layout": "lr",
+        "recipes": [
+          [
+            "合",
+            "鳥"
+          ]
+        ],
+        "hint": "和平之鳥，白鴿信鴿"
       }
     ]
   },
@@ -1643,6 +2207,61 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "絲縷如泉水綿延，針線絲線"
+      },
+      {
+        "char": "鳶",
+        "layout": "tb",
+        "recipes": [
+          [
+            "戈",
+            "鳥"
+          ]
+        ],
+        "hint": "猛禽飛鳥，紙鳶老鷹"
+      },
+      {
+        "char": "芸",
+        "layout": "tb",
+        "recipes": [
+          [
+            "艹",
+            "云"
+          ]
+        ],
+        "hint": "香草之名，芸芸眾生"
+      },
+      {
+        "char": "塊",
+        "layout": "lr",
+        "recipes": [
+          [
+            "土",
+            "鬼"
+          ]
+        ],
+        "hint": "成團土石，方塊一塊"
+      },
+      {
+        "char": "槐",
+        "layout": "lr",
+        "recipes": [
+          [
+            "木",
+            "鬼"
+          ]
+        ],
+        "hint": "落葉喬木，槐樹"
+      },
+      {
+        "char": "愧",
+        "layout": "lr",
+        "recipes": [
+          [
+            "心",
+            "鬼"
+          ]
+        ],
+        "hint": "心中羞慚，慚愧無愧"
       }
     ]
   },
@@ -1780,6 +2399,17 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "草木順從，宛若倘若"
+      },
+      {
+        "char": "忡",
+        "layout": "lr",
+        "recipes": [
+          [
+            "心",
+            "中"
+          ]
+        ],
+        "hint": "心中憂慮，憂心忡忡"
       }
     ]
   },
@@ -1954,6 +2584,51 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "口上八下，只有一隻"
+      },
+      {
+        "char": "汪",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "王"
+          ]
+        ],
+        "hint": "水深廣大，汪洋"
+      },
+      {
+        "char": "註",
+        "layout": "lr",
+        "recipes": [
+          [
+            "言",
+            "主"
+          ]
+        ],
+        "hint": "以言解說，註解註冊"
+      },
+      {
+        "char": "拄",
+        "layout": "lr",
+        "recipes": [
+          [
+            "手",
+            "主"
+          ]
+        ],
+        "hint": "以手支撐，拄拐杖"
+      },
+      {
+        "char": "汴",
+        "layout": "tri",
+        "recipes": [
+          [
+            "水",
+            "丶",
+            "下"
+          ]
+        ],
+        "hint": "古水名（氵 + 丶 + 下），汴京開封"
       }
     ]
   },
@@ -2137,6 +2812,39 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "三毛相疊，鳥獸細毛"
+      },
+      {
+        "char": "聒",
+        "layout": "lr",
+        "recipes": [
+          [
+            "耳",
+            "舌"
+          ]
+        ],
+        "hint": "聲音嘈雜刺耳，聒噪"
+      },
+      {
+        "char": "鈹",
+        "layout": "lr",
+        "recipes": [
+          [
+            "金",
+            "皮"
+          ]
+        ],
+        "hint": "金屬元素，亦指長矛"
+      },
+      {
+        "char": "迓",
+        "layout": "enc",
+        "recipes": [
+          [
+            "辶",
+            "牙"
+          ]
+        ],
+        "hint": "出門迎接，迎迓"
       }
     ]
   },
@@ -2312,6 +3020,105 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "額頭題目，是旁頁形"
+      },
+      {
+        "char": "筧",
+        "layout": "tb",
+        "recipes": [
+          [
+            "竹",
+            "見"
+          ]
+        ],
+        "hint": "引水竹管，竹筧"
+      },
+      {
+        "char": "昱",
+        "layout": "tb",
+        "recipes": [
+          [
+            "日",
+            "立"
+          ]
+        ],
+        "hint": "日光燦爛，明日昱日"
+      },
+      {
+        "char": "沚",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "止"
+          ]
+        ],
+        "hint": "水中陸地，洲沚"
+      },
+      {
+        "char": "芷",
+        "layout": "tb",
+        "recipes": [
+          [
+            "艹",
+            "止"
+          ]
+        ],
+        "hint": "芳香草本，白芷"
+      },
+      {
+        "char": "笠",
+        "layout": "tb",
+        "recipes": [
+          [
+            "竹",
+            "立"
+          ]
+        ],
+        "hint": "竹編雨帽，斗笠簑笠"
+      },
+      {
+        "char": "煩",
+        "layout": "lr",
+        "recipes": [
+          [
+            "火",
+            "頁"
+          ]
+        ],
+        "hint": "頭熱心躁，煩惱麻煩"
+      },
+      {
+        "char": "俔",
+        "layout": "lr",
+        "recipes": [
+          [
+            "人",
+            "見"
+          ]
+        ],
+        "hint": "窺伺譬喻，俔天之妹"
+      },
+      {
+        "char": "靚",
+        "layout": "lr",
+        "recipes": [
+          [
+            "青",
+            "見"
+          ]
+        ],
+        "hint": "妝飾美麗，靚麗"
+      },
+      {
+        "char": "靖",
+        "layout": "lr",
+        "recipes": [
+          [
+            "立",
+            "青"
+          ]
+        ],
+        "hint": "安定平靜，靖康安靖"
       }
     ]
   },
@@ -2438,6 +3245,55 @@ const STAGES_DATA = [
           ]
         ],
         "hint": "陶製大器，水缸米缸"
+      },
+      {
+        "char": "盞",
+        "layout": "tb",
+        "recipes": [
+          [
+            "戔",
+            "皿"
+          ],
+          [
+            "戈",
+            "戈",
+            "皿"
+          ]
+        ],
+        "hint": "小巧酒杯燈具，茶盞燈盞"
+      },
+      {
+        "char": "仿",
+        "layout": "lr",
+        "recipes": [
+          [
+            "人",
+            "方"
+          ]
+        ],
+        "hint": "效法相似，模仿彷彿"
+      },
+      {
+        "char": "妨",
+        "layout": "lr",
+        "recipes": [
+          [
+            "女",
+            "方"
+          ]
+        ],
+        "hint": "阻礙損害，妨礙無妨"
+      },
+      {
+        "char": "坊",
+        "layout": "lr",
+        "recipes": [
+          [
+            "土",
+            "方"
+          ]
+        ],
+        "hint": "里巷作坊，牌坊街坊"
       }
     ]
   },
@@ -4460,7 +5316,6 @@ const STAGES_DATA = [
         ],
         "hint": "商議計策，謀略參謀"
       },
-
       {
         "char": "磨",
         "layout": "enc",
@@ -16028,110 +16883,612 @@ const STAGES_DATA = [
       }
     ]
   },
-  // 2. 補全第 105 階並新增第 106～110 階（接續在 STAGES_DATA 第 104 階之後）
   {
     "stage": 105,
     "title": "經史子集",
     "subtitle": "譯古通今",
-    "components": ["彖", "乂", "睪", "舀", "舄"],
+    "components": [
+      "彖",
+      "乂",
+      "睪",
+      "舀",
+      "舄"
+    ],
     "unlockThreshold": 7,
     "chestRewardCoins": 270,
     "targets": [
-      { "char": "緣", "layout": "lr", "recipes": [["糸", "彖"]], "hint": "衣邊飾帶，緣分邊緣" },
-      { "char": "篆", "layout": "tb", "recipes": [["竹", "彖"]], "hint": "大篆小篆，篆書印篆" },
-      { "char": "艾", "layout": "tb", "recipes": [["艹", "乂"]], "hint": "艾草芳草，方興未艾" },
-      { "char": "刈", "layout": "lr", "recipes": [["乂", "刀"]], "hint": "鐮刀割草，刈除" },
-      { "char": "譯", "layout": "lr", "recipes": [["言", "睪"]], "hint": "傳譯言語，翻譯解譯" },
-      { "char": "釋", "layout": "lr", "recipes": [["采", "睪"]], "hint": "分辨解理，解釋釋放" },
-      { "char": "澤", "layout": "lr", "recipes": [["水", "睪"]], "hint": "水草聚匯，沼澤恩澤" },
-      { "char": "擇", "layout": "lr", "recipes": [["手", "睪"]], "hint": "伸手挑選，選擇抉擇" },
-      { "char": "驛", "layout": "lr", "recipes": [["馬", "睪"]], "hint": "古時傳書換馬之站，驛站" },
-      { "char": "稻", "layout": "lr", "recipes": [["禾", "舀"]], "hint": "水田穀物，水稻稻穗" },
-      { "char": "蹈", "layout": "lr", "recipes": [["足", "舀"]], "hint": "頓足起舞，手舞足蹈" },
-      { "char": "滔", "layout": "lr", "recipes": [["水", "舀"]], "hint": "大水漫流，滔滔不絕" },
-      { "char": "潟", "layout": "lr", "recipes": [["水", "舄"]], "hint": "鹹水海岸湖泊，潟湖" },
-      { "char": "寫", "layout": "tb", "recipes": [["宀", "舄"]], "hint": "屋下書寫，寫作描寫" }
+      {
+        "char": "緣",
+        "layout": "lr",
+        "recipes": [
+          [
+            "糸",
+            "彖"
+          ]
+        ],
+        "hint": "衣邊飾帶，緣分邊緣"
+      },
+      {
+        "char": "篆",
+        "layout": "tb",
+        "recipes": [
+          [
+            "竹",
+            "彖"
+          ]
+        ],
+        "hint": "大篆小篆，篆書印篆"
+      },
+      {
+        "char": "艾",
+        "layout": "tb",
+        "recipes": [
+          [
+            "艹",
+            "乂"
+          ]
+        ],
+        "hint": "艾草芳草，方興未艾"
+      },
+      {
+        "char": "刈",
+        "layout": "lr",
+        "recipes": [
+          [
+            "乂",
+            "刀"
+          ]
+        ],
+        "hint": "鐮刀割草，刈除"
+      },
+      {
+        "char": "譯",
+        "layout": "lr",
+        "recipes": [
+          [
+            "言",
+            "睪"
+          ]
+        ],
+        "hint": "傳譯言語，翻譯解譯"
+      },
+      {
+        "char": "釋",
+        "layout": "lr",
+        "recipes": [
+          [
+            "采",
+            "睪"
+          ]
+        ],
+        "hint": "分辨解理，解釋釋放"
+      },
+      {
+        "char": "澤",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "睪"
+          ]
+        ],
+        "hint": "水草聚匯，沼澤恩澤"
+      },
+      {
+        "char": "擇",
+        "layout": "lr",
+        "recipes": [
+          [
+            "手",
+            "睪"
+          ]
+        ],
+        "hint": "伸手挑選，選擇抉擇"
+      },
+      {
+        "char": "驛",
+        "layout": "lr",
+        "recipes": [
+          [
+            "馬",
+            "睪"
+          ]
+        ],
+        "hint": "古時傳書換馬之站，驛站"
+      },
+      {
+        "char": "稻",
+        "layout": "lr",
+        "recipes": [
+          [
+            "禾",
+            "舀"
+          ]
+        ],
+        "hint": "水田穀物，水稻稻穗"
+      },
+      {
+        "char": "蹈",
+        "layout": "lr",
+        "recipes": [
+          [
+            "足",
+            "舀"
+          ]
+        ],
+        "hint": "頓足起舞，手舞足蹈"
+      },
+      {
+        "char": "滔",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "舀"
+          ]
+        ],
+        "hint": "大水漫流，滔滔不絕"
+      },
+      {
+        "char": "潟",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "舄"
+          ]
+        ],
+        "hint": "鹹水海岸湖泊，潟湖"
+      },
+      {
+        "char": "寫",
+        "layout": "tb",
+        "recipes": [
+          [
+            "宀",
+            "舄"
+          ]
+        ],
+        "hint": "屋下書寫，寫作描寫"
+      }
     ]
   },
   {
     "stage": 106,
     "title": "革故鼎新",
     "subtitle": "日新月異",
-    "components": ["化", "代", "世", "永", "久"],
+    "components": [
+      "化",
+      "代",
+      "世",
+      "永",
+      "久"
+    ],
     "unlockThreshold": 5,
     "chestRewardCoins": 270,
     "targets": [
-      { "char": "花", "layout": "tb", "recipes": [["艹", "化"]], "hint": "草木開花，百花齊放" },
-      { "char": "貨", "layout": "tb", "recipes": [["化", "貝"]], "hint": "交易財物，貨物貨幣" },
-      { "char": "靴", "layout": "lr", "recipes": [["革", "化"]], "hint": "皮革長筒履，皮靴馬靴" },
-      { "char": "訛", "layout": "lr", "recipes": [["言", "化"]], "hint": "言語差錯，訛傳" },
-      { "char": "貸", "layout": "tb", "recipes": [["代", "貝"]], "hint": "借出財貝，借貸貸款" },
-      { "char": "袋", "layout": "tb", "recipes": [["代", "衣"]], "hint": "布帛縫製盛物，口袋布袋" },
-      { "char": "岱", "layout": "tb", "recipes": [["代", "山"]], "hint": "五岳之首泰山別稱，岱宗" },
-      { "char": "黛", "layout": "tb", "recipes": [["代", "黑"]], "hint": "青黑色畫眉顏料，粉黛" }
+      {
+        "char": "花",
+        "layout": "tb",
+        "recipes": [
+          [
+            "艹",
+            "化"
+          ]
+        ],
+        "hint": "草木開花，百花齊放"
+      },
+      {
+        "char": "貨",
+        "layout": "tb",
+        "recipes": [
+          [
+            "化",
+            "貝"
+          ]
+        ],
+        "hint": "交易財物，貨物貨幣"
+      },
+      {
+        "char": "靴",
+        "layout": "lr",
+        "recipes": [
+          [
+            "革",
+            "化"
+          ]
+        ],
+        "hint": "皮革長筒履，皮靴馬靴"
+      },
+      {
+        "char": "訛",
+        "layout": "lr",
+        "recipes": [
+          [
+            "言",
+            "化"
+          ]
+        ],
+        "hint": "言語差錯，訛傳"
+      },
+      {
+        "char": "貸",
+        "layout": "tb",
+        "recipes": [
+          [
+            "代",
+            "貝"
+          ]
+        ],
+        "hint": "借出財貝，借貸貸款"
+      },
+      {
+        "char": "袋",
+        "layout": "tb",
+        "recipes": [
+          [
+            "代",
+            "衣"
+          ]
+        ],
+        "hint": "布帛縫製盛物，口袋布袋"
+      },
+      {
+        "char": "岱",
+        "layout": "tb",
+        "recipes": [
+          [
+            "代",
+            "山"
+          ]
+        ],
+        "hint": "五岳之首泰山別稱，岱宗"
+      },
+      {
+        "char": "黛",
+        "layout": "tb",
+        "recipes": [
+          [
+            "代",
+            "黑"
+          ]
+        ],
+        "hint": "青黑色畫眉顏料，粉黛"
+      }
     ]
   },
   {
     "stage": 107,
     "title": "提綱挈領",
     "subtitle": "百煉成鋼",
-    "components": ["罔", "岡", "網", "剛", "鋼"],
+    "components": [
+      "罔",
+      "岡",
+      "網",
+      "剛",
+      "鋼"
+    ],
     "unlockThreshold": 4,
     "chestRewardCoins": 280,
     "targets": [
-      { "char": "網", "layout": "lr", "recipes": [["糸", "罔"]], "hint": "結繩編網，魚網網路" },
-      { "char": "惘", "layout": "lr", "recipes": [["心", "罔"]], "hint": "心中迷失方向，迷惘悵惘" },
-      { "char": "剛", "layout": "lr", "recipes": [["岡", "刀"]], "hint": "堅硬銳利，剛強剛毅" },
-      { "char": "鋼", "layout": "lr", "recipes": [["金", "岡"]], "hint": "精煉金屬，百煉成鋼" },
-      { "char": "綱", "layout": "lr", "recipes": [["糸", "岡"]], "hint": "網之大繩，提綱挈領" },
-      { "char": "崗", "layout": "tb", "recipes": [["山", "岡"]], "hint": "高起山脊，山崗崗位" }
+      {
+        "char": "網",
+        "layout": "lr",
+        "recipes": [
+          [
+            "糸",
+            "罔"
+          ]
+        ],
+        "hint": "結繩編網，魚網網路"
+      },
+      {
+        "char": "惘",
+        "layout": "lr",
+        "recipes": [
+          [
+            "心",
+            "罔"
+          ]
+        ],
+        "hint": "心中迷失方向，迷惘悵惘"
+      },
+      {
+        "char": "剛",
+        "layout": "lr",
+        "recipes": [
+          [
+            "岡",
+            "刀"
+          ]
+        ],
+        "hint": "堅硬銳利，剛強剛毅"
+      },
+      {
+        "char": "鋼",
+        "layout": "lr",
+        "recipes": [
+          [
+            "金",
+            "岡"
+          ]
+        ],
+        "hint": "精煉金屬，百煉成鋼"
+      },
+      {
+        "char": "綱",
+        "layout": "lr",
+        "recipes": [
+          [
+            "糸",
+            "岡"
+          ]
+        ],
+        "hint": "網之大繩，提綱挈領"
+      },
+      {
+        "char": "崗",
+        "layout": "tb",
+        "recipes": [
+          [
+            "山",
+            "岡"
+          ]
+        ],
+        "hint": "高起山脊，山崗崗位"
+      }
     ]
   },
   {
     "stage": 108,
     "title": "星漢燦爛",
     "subtitle": "飛躍雲霄",
-    "components": ["翟", "耀", "躍", "濯", "擢"],
+    "components": [
+      "翟",
+      "耀",
+      "躍",
+      "濯",
+      "擢"
+    ],
     "unlockThreshold": 4,
     "chestRewardCoins": 280,
     "targets": [
-      { "char": "曜", "layout": "lr", "recipes": [["日", "翟"]], "hint": "日月星辰七曜，照曜" },
-      { "char": "耀", "layout": "lr", "recipes": [["光", "翟"]], "hint": "光芒四射，榮耀閃耀" },
-      { "char": "躍", "layout": "lr", "recipes": [["足", "翟"]], "hint": "騰足跳起，飛躍跳躍" },
-      { "char": "濯", "layout": "lr", "recipes": [["水", "翟"]], "hint": "以水洗滌，洗濯" },
-      { "char": "擢", "layout": "lr", "recipes": [["手", "翟"]], "hint": "伸手拔起，拔擢提拔" },
-      { "char": "戳", "layout": "lr", "recipes": [["翟", "戈"]], "hint": "刺擊與印記，郵戳圖戳" }
+      {
+        "char": "曜",
+        "layout": "lr",
+        "recipes": [
+          [
+            "日",
+            "翟"
+          ]
+        ],
+        "hint": "日月星辰七曜，照曜"
+      },
+      {
+        "char": "耀",
+        "layout": "lr",
+        "recipes": [
+          [
+            "光",
+            "翟"
+          ]
+        ],
+        "hint": "光芒四射，榮耀閃耀"
+      },
+      {
+        "char": "躍",
+        "layout": "lr",
+        "recipes": [
+          [
+            "足",
+            "翟"
+          ]
+        ],
+        "hint": "騰足跳起，飛躍跳躍"
+      },
+      {
+        "char": "濯",
+        "layout": "lr",
+        "recipes": [
+          [
+            "水",
+            "翟"
+          ]
+        ],
+        "hint": "以水洗滌，洗濯"
+      },
+      {
+        "char": "擢",
+        "layout": "lr",
+        "recipes": [
+          [
+            "手",
+            "翟"
+          ]
+        ],
+        "hint": "伸手拔起，拔擢提拔"
+      },
+      {
+        "char": "戳",
+        "layout": "lr",
+        "recipes": [
+          [
+            "翟",
+            "戈"
+          ]
+        ],
+        "hint": "刺擊與印記，郵戳圖戳"
+      }
     ]
   },
   {
     "stage": 109,
     "title": "嘉賓滿座",
     "subtitle": "普天同慶",
-    "components": ["慶", "賀", "嘉", "駕", "架"],
+    "components": [
+      "慶",
+      "賀",
+      "嘉",
+      "駕",
+      "架"
+    ],
     "unlockThreshold": 4,
     "chestRewardCoins": 290,
     "targets": [
-      { "char": "賀", "layout": "tb", "recipes": [["加", "貝"], ["力", "口", "貝"]], "hint": "奉財相慶，祝賀道賀" },
-      { "char": "架", "layout": "tb", "recipes": [["加", "木"], ["力", "口", "木"]], "hint": "木構支架，書架架構" },
-      { "char": "駕", "layout": "tb", "recipes": [["加", "馬"], ["力", "口", "馬"]], "hint": "駕馭駿馬，駕車凌駕" },
-      { "char": "茄", "layout": "tb", "recipes": [["艹", "加"]], "hint": "草本蔬果，茄子番茄" },
-      { "char": "珈", "layout": "lr", "recipes": [["王", "加"]], "hint": "古代婦人玉飾，珈藍" },
-      { "char": "嘉", "layout": "tb", "recipes": [["吉", "加"]], "hint": "美善讚許，嘉獎嘉賓" }
+      {
+        "char": "賀",
+        "layout": "tb",
+        "recipes": [
+          [
+            "加",
+            "貝"
+          ],
+          [
+            "力",
+            "口",
+            "貝"
+          ]
+        ],
+        "hint": "奉財相慶，祝賀道賀"
+      },
+      {
+        "char": "架",
+        "layout": "tb",
+        "recipes": [
+          [
+            "加",
+            "木"
+          ],
+          [
+            "力",
+            "口",
+            "木"
+          ]
+        ],
+        "hint": "木構支架，書架架構"
+      },
+      {
+        "char": "駕",
+        "layout": "tb",
+        "recipes": [
+          [
+            "加",
+            "馬"
+          ],
+          [
+            "力",
+            "口",
+            "馬"
+          ]
+        ],
+        "hint": "駕馭駿馬，駕車凌駕"
+      },
+      {
+        "char": "茄",
+        "layout": "tb",
+        "recipes": [
+          [
+            "艹",
+            "加"
+          ]
+        ],
+        "hint": "草本蔬果，茄子番茄"
+      },
+      {
+        "char": "珈",
+        "layout": "lr",
+        "recipes": [
+          [
+            "王",
+            "加"
+          ]
+        ],
+        "hint": "古代婦人玉飾，珈藍"
+      },
+      {
+        "char": "嘉",
+        "layout": "tb",
+        "recipes": [
+          [
+            "吉",
+            "加"
+          ]
+        ],
+        "hint": "美善讚許，嘉獎嘉賓"
+      }
     ]
   },
   {
     "stage": 110,
     "title": "天人合一",
     "subtitle": "造字宗師",
-    "components": ["聖", "鳳", "凰", "國", "寶"],
+    "components": [
+      "聖",
+      "鳳",
+      "凰",
+      "國",
+      "寶"
+    ],
     "unlockThreshold": 4,
     "chestRewardCoins": 500,
     "targets": [
-      { "char": "聖", "layout": "tri", "recipes": [["耳", "口", "王"]], "hint": "耳聞口傳王者之道，聖賢神聖" },
-      { "char": "鳳", "layout": "enc", "recipes": [["几", "鳥"]], "hint": "百鳥之王，鳳凰于飛" },
-      { "char": "凰", "layout": "enc", "recipes": [["几", "皇"]], "hint": "神鳥雌鳳，鳳凰" },
-      { "char": "龝", "layout": "lr", "recipes": [["禾", "龜"]], "hint": "「秋」之古字，禾穀熟如靈龜" },
-      { "char": "寶", "layout": "tri", "recipes": [["宀", "玉", "貝"]], "hint": "屋藏美玉與貝幣，墨韻至寶！" }
+      {
+        "char": "聖",
+        "layout": "tri",
+        "recipes": [
+          [
+            "耳",
+            "口",
+            "王"
+          ]
+        ],
+        "hint": "耳聞口傳王者之道，聖賢神聖"
+      },
+      {
+        "char": "鳳",
+        "layout": "enc",
+        "recipes": [
+          [
+            "几",
+            "鳥"
+          ]
+        ],
+        "hint": "百鳥之王，鳳凰于飛"
+      },
+      {
+        "char": "凰",
+        "layout": "enc",
+        "recipes": [
+          [
+            "几",
+            "皇"
+          ]
+        ],
+        "hint": "神鳥雌鳳，鳳凰"
+      },
+      {
+        "char": "龝",
+        "layout": "lr",
+        "recipes": [
+          [
+            "禾",
+            "龜"
+          ]
+        ],
+        "hint": "「秋」之古字，禾穀熟如靈龜"
+      },
+      {
+        "char": "寶",
+        "layout": "tri",
+        "recipes": [
+          [
+            "宀",
+            "玉",
+            "貝"
+          ]
+        ],
+        "hint": "屋藏美玉與貝幣，墨韻至寶！"
+      }
     ]
   }
 ];
