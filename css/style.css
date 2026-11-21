@@ -126,6 +126,23 @@ body {
   border-radius: 50%;
   background: #4ade80;
   box-shadow: 0 0 6px #4ade80;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.status-dot.syncing {
+  background: #fbbf24;
+  box-shadow: 0 0 8px #fbbf24;
+  animation: syncBlink 0.9s infinite alternate;
+}
+
+.status-dot.offline {
+  background: #f87171;
+  box-shadow: 0 0 6px #f87171;
+}
+
+@keyframes syncBlink {
+  from { opacity: 0.45; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1.15); }
 }
 
 .pill-tag {
@@ -134,6 +151,11 @@ body {
   font-size: 0.72rem;
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
+}
+
+.pill-tag.offline {
+  background: rgba(248, 113, 113, 0.2);
+  color: #fca5a5;
 }
 
 .coin-pill {
@@ -605,6 +627,12 @@ body {
   cursor: pointer;
   border: none;
   transition: all 0.15s ease;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
 }
 
 .action-btn.primary {
@@ -1271,6 +1299,22 @@ body {
   margin-bottom: 1rem;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.auth-current-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.sync-now-btn {
+  background: var(--jade) !important;
+  color: #fff !important;
+  border-color: var(--jade) !important;
+}
+
+.sync-now-btn:hover {
+  background: #1e4f42 !important;
 }
 
 .auth-btn-row,
