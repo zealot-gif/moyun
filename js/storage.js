@@ -1,28 +1,74 @@
 /**
- * 墨韻活字工坊 - 使用者登入與雙層進度暫存引擎 (storage.js)
- * 支援：
- * 1. 本機裝置即時暫存 (localStorage device cache)
- * 2. 多使用者帳號註冊、密碼驗證與一鍵切換存檔
- * 3. JSON 進度備份檔匯出與匯入
- * 4. 預留雲端資料庫同步介接埠 (CloudSyncAdapter)
+ * 墨韻活字工坊 - 跨裝置雲端同步與本機雙層暫存引擎 (storage.js)
  */
+
+const GAS_API_URL = "貼上你的_WEB_APP_URL"; // <--- 請貼上部署後的 GAS Web App URL
 
 const StorageManager = (() => {
   const KEYS = {
     DEVICE_CACHE: "moyun_device_cache_v1",
     ACCOUNTS_DB: "moyun_accounts_db_v1",
-    ACTIVE_USER: "moyun_active_user_v1"
+    ACTIVE_USER: "cloud_user",
+    ACTIVE_HASH: "cloud_hash"
   };
+
+  let syncTimer = null;
+  let onSyncStatusChangeCallback = null;
+
+  function setSyncStatusListener(cb) {
+    onSyncStatusChangeCallback = cb;
+  }
+
+  function notifySyncStatus(status, text) {
+    if (typeof onSyncStatusChangeCallback === "function") {
+      onSyncStatusChangeCallback(status, text); // status: 'local' | 'syncing' | 'synced' | 'error'
+    }
+  }
+
+  // 將密碼轉為 SHA-256 雜湊值（含非 HTTPS 環境降級保護）
+  async function hashPassword(password) {
+    const clean = password.trim();
+    if (window.crypto && window.crypto.subtle) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(clean);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+    // 備援簡易雜湊（僅供非安全連線本機測試）
+    let h = 0;
+    for (let i = 0; i < clean.length; i++) {
+      h = (Math.imul(31, h) + clean.charCodeAt(i)) | 0;
+    }
+    return "fallback_" + Math.abs(h).toString(16);
+  }
+
+  function isCloudConfigured() {
+    return GAS_API_URL && GAS_API_URL.startsWith("https://");
+  }
+
+  // 發送請求給 GAS（不加 application/json header，避開 CORS preflight）
+  async function callGAS(payload) {
+    if (!isCloudConfigured()) {
+      return { success: false, offline: true, message: "尚未設定 GAS_API_URL，目前僅使用本機暫存" };
+    }
+    const response = await fetch(GAS_API_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    return await response.json();
+  }
 
   function createDefaultProgress() {
     return {
       maxStageUnlocked: 1,
       activeStage: 1,
-      openedChests: [],         // 已開啟過寶箱的階段編號陣列 (例如 [1, 2])
-      unlockedChars: [],        // 玩家已合成解鎖的漢字陣列
-      coins: 120,               // 初始贈送 120 金幣
-      purchasedHints: {},       // { "1": ["【字義暗示】明：日月齊輝..."] }
-      paymentHistory: [],       // 信用卡儲值紀錄
+      openedChests: [],
+      unlockedChars: [],
+      coins: 120,
+      purchasedHints: {},
+      paymentHistory: [],
       updatedAt: new Date().toISOString()
     };
   }
@@ -41,6 +87,10 @@ const StorageManager = (() => {
 
   function getActiveUsername() {
     return localStorage.getItem(KEYS.ACTIVE_USER) || null;
+  }
+
+  function isCloudLoggedIn() {
+    return Boolean(localStorage.getItem(KEYS.ACTIVE_USER) && localStorage.getItem(KEYS.ACTIVE_HASH));
   }
 
   function loadProgress() {
@@ -62,78 +112,230 @@ const StorageManager = (() => {
     return createDefaultProgress();
   }
 
-  function saveProgress(progress) {
+  // 啟動時自動從雲端拉取最新進度（實現跨裝置無縫接軌）
+  async function syncFromCloudOnBoot() {
+    const username = localStorage.getItem(KEYS.ACTIVE_USER);
+    const passwordHash = localStorage.getItem(KEYS.ACTIVE_HASH);
+    if (!username || !passwordHash || !isCloudConfigured()) {
+      return null;
+    }
+
+    notifySyncStatus("syncing", "雲端同步中...");
+    try {
+      const res = await callGAS({
+        action: "login",
+        username,
+        passwordHash
+      });
+      if (res.success && res.userData) {
+        const merged = { ...createDefaultProgress(), ...res.userData };
+        const db = getAccountsDB();
+        db[username] = { hash: passwordHash, progress: merged };
+        saveAccountsDB(db);
+        localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(merged));
+        notifySyncStatus("synced", "雲端已同步");
+        return merged;
+      } else {
+        notifySyncStatus("error", "雲端同步異常");
+        return null;
+      }
+    } catch (err) {
+      notifySyncStatus("error", "離線暫存中");
+      return null;
+    }
+  }
+
+  // 立即推送至雲端
+  async function saveCloudDataNow(userDataObj, receipt = null) {
+    const username = localStorage.getItem(KEYS.ACTIVE_USER);
+    const passwordHash = localStorage.getItem(KEYS.ACTIVE_HASH);
+    if (!username || !passwordHash) {
+      notifySyncStatus("local", "本機暫存");
+      return { success: false, message: "尚未登入雲端帳號" };
+    }
+    if (!isCloudConfigured()) {
+      notifySyncStatus("local", "本機已存");
+      return { success: false, offline: true, message: "未設定雲端網址，已存於本機" };
+    }
+
+    notifySyncStatus("syncing", "同步雲端中...");
+    try {
+      const res = await callGAS({
+        action: "save",
+        username,
+        passwordHash,
+        userData: userDataObj,
+        receipt
+      });
+      if (res.success) {
+        notifySyncStatus("synced", "雲端已同步");
+      } else {
+        notifySyncStatus("error", "同步失敗");
+      }
+      return res;
+    } catch (err) {
+      notifySyncStatus("error", "離線暫存中");
+      return { success: false, message: "網路異常，進度已暫存於本機" };
+    }
+  }
+
+  /**
+   * 儲存進度（本機即時寫入 + 雲端智慧同步）
+   * @param {Object} progress 遊戲狀態物件
+   * @param {Object} options { immediate: boolean, receipt: Object|null }
+   */
+  function saveProgress(progress, options = {}) {
     progress.updatedAt = new Date().toISOString();
-    // 1. 永遠寫入本機裝置暫存 (確保離線或未登入時也絕不遺失)
+
+    // 1. 本機裝置立即寫入
     localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(progress));
 
-    // 2. 若已登入使用者帳號，同步更新該帳號專屬存檔
     const activeUser = getActiveUsername();
+    const activeHash = localStorage.getItem(KEYS.ACTIVE_HASH);
     if (activeUser) {
       const db = getAccountsDB();
-      if (db[activeUser]) {
-        db[activeUser].progress = progress;
-        saveAccountsDB(db);
-      }
-    }
-
-    // 3. 觸發預留雲端同步介面（若已設定雲端端點）
-    CloudSyncAdapter.push(activeUser, progress);
-  }
-
-  function loginOrRegister(username, pin, currentProgress) {
-    const cleanName = username.trim();
-    if (!cleanName || pin.trim().length < 4) {
-      return { ok: false, message: "請輸入帳號名稱，且密碼 / PIN 碼至少需 4 碼。" };
-    }
-
-    const db = getAccountsDB();
-    if (db[cleanName]) {
-      // 驗證既有帳號
-      if (db[cleanName].pin !== pin.trim()) {
-        return { ok: false, message: "密碼 / PIN 碼錯誤，請重新輸入。" };
-      }
-      localStorage.setItem(KEYS.ACTIVE_USER, cleanName);
-      const loaded = { ...createDefaultProgress(), ...db[cleanName].progress };
-      localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(loaded));
-      return {
-        ok: true,
-        isNew: false,
-        username: cleanName,
-        progress: loaded,
-        message: `歡迎回來，「${cleanName}」！已載入您的雲端/本機帳號進度。`
-      };
-    } else {
-      // 註冊新帳號並繼承目前訪客進度
-      db[cleanName] = {
-        pin: pin.trim(),
-        createdAt: new Date().toISOString(),
-        progress: { ...currentProgress, updatedAt: new Date().toISOString() }
+      db[activeUser] = {
+        hash: activeHash || (db[activeUser] && db[activeUser].hash) || "",
+        progress
       };
       saveAccountsDB(db);
-      localStorage.setItem(KEYS.ACTIVE_USER, cleanName);
-      return {
-        ok: true,
-        isNew: true,
-        username: cleanName,
-        progress: db[cleanName].progress,
-        message: `已成功註冊「${cleanName}」，並將目前進度與金幣綁定至此帳號！`
-      };
+    }
+
+    // 2. 雲端同步（儲值或寶箱開啟時立即同步，一般操作防抖動 1.5 秒）
+    if (!activeUser || !activeHash) {
+      notifySyncStatus("local", "本機暫存");
+      return;
+    }
+
+    if (options.immediate) {
+      clearTimeout(syncTimer);
+      saveCloudDataNow(progress, options.receipt || null);
+    } else {
+      notifySyncStatus("syncing", "待同步...");
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        saveCloudDataNow(progress, null);
+      }, 1500);
     }
   }
 
-  function switchAccountDirect(username) {
+  // 1. 註冊雲端與本機帳號
+  async function registerUser(username, password, initialData) {
+    const cleanName = username.trim();
+    if (!cleanName || password.trim().length < 4) {
+      return { ok: false, message: "請輸入帳號名稱，且密碼至少需 4 碼。" };
+    }
+
+    const passwordHash = await hashPassword(password);
+    const payloadData = { ...createDefaultProgress(), ...initialData, updatedAt: new Date().toISOString() };
+
+    if (isCloudConfigured()) {
+      notifySyncStatus("syncing", "註冊雲端中...");
+      try {
+        const res = await callGAS({
+          action: "register",
+          username: cleanName,
+          passwordHash,
+          userData: payloadData
+        });
+        if (!res.success) {
+          notifySyncStatus("error", "註冊失敗");
+          return { ok: false, message: res.message || "註冊失敗" };
+        }
+      } catch (err) {
+        notifySyncStatus("error", "連線失敗");
+        return { ok: false, message: "無法連線至雲端伺服器，請檢查網路或 GAS 部署設定。" };
+      }
+    }
+
+    // 寫入本機憑證與快取
+    localStorage.setItem(KEYS.ACTIVE_USER, cleanName);
+    localStorage.setItem(KEYS.ACTIVE_HASH, passwordHash);
     const db = getAccountsDB();
-    if (!db[username]) return null;
-    localStorage.setItem(KEYS.ACTIVE_USER, username);
-    const loaded = { ...createDefaultProgress(), ...db[username].progress };
+    db[cleanName] = { hash: passwordHash, createdAt: new Date().toISOString(), progress: payloadData };
+    saveAccountsDB(db);
+    localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(payloadData));
+
+    notifySyncStatus(isCloudConfigured() ? "synced" : "local", isCloudConfigured() ? "雲端已同步" : "本機已存");
+    return {
+      ok: true,
+      username: cleanName,
+      progress: payloadData,
+      message: isCloudConfigured()
+        ? `雲端帳號「${cleanName}」註冊成功！換裝置登入相同帳密即可同步進度。`
+        : `本機帳號「${cleanName}」建立成功（未設定雲端網址，目前為本機存檔）。`
+    };
+  }
+
+  // 2. 登入雲端帳號並拉取跨裝置進度
+  async function loginUser(username, password) {
+    const cleanName = username.trim();
+    if (!cleanName || password.trim().length < 4) {
+      return { ok: false, message: "請輸入帳號名稱與至少 4 碼密碼。" };
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    if (isCloudConfigured()) {
+      notifySyncStatus("syncing", "登入雲端中...");
+      try {
+        const res = await callGAS({
+          action: "login",
+          username: cleanName,
+          passwordHash
+        });
+        if (!res.success) {
+          notifySyncStatus("error", "登入失敗");
+          return { ok: false, message: res.message || "帳號或密碼錯誤" };
+        }
+        const loaded = { ...createDefaultProgress(), ...(res.userData || {}) };
+        localStorage.setItem(KEYS.ACTIVE_USER, cleanName);
+        localStorage.setItem(KEYS.ACTIVE_HASH, passwordHash);
+
+        const db = getAccountsDB();
+        db[cleanName] = { hash: passwordHash, progress: loaded };
+        saveAccountsDB(db);
+        localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(loaded));
+
+        notifySyncStatus("synced", "雲端已同步");
+        return {
+          ok: true,
+          username: cleanName,
+          progress: loaded,
+          message: `歡迎回來，「${cleanName}」！已從雲端載入最新進度與金幣。`
+        };
+      } catch (err) {
+        notifySyncStatus("error", "連線失敗");
+        return { ok: false, message: "雲端伺服器連線逾時，請稍後再試。" };
+      }
+    }
+
+    // 離線/未設定 GAS 時的本機驗證降級
+    const db = getAccountsDB();
+    if (!db[cleanName]) {
+      return { ok: false, message: "本機找不到此帳號，請先點擊「註冊新帳號」。" };
+    }
+    if (db[cleanName].hash !== passwordHash) {
+      return { ok: false, message: "密碼錯誤，請重新輸入。" };
+    }
+    localStorage.setItem(KEYS.ACTIVE_USER, cleanName);
+    localStorage.setItem(KEYS.ACTIVE_HASH, passwordHash);
+    const loaded = { ...createDefaultProgress(), ...db[cleanName].progress };
     localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(loaded));
-    return loaded;
+    notifySyncStatus("local", "本機已存");
+    return { ok: true, username: cleanName, progress: loaded, message: `已載入本機帳號「${cleanName}」。` };
   }
 
   function logoutToGuest() {
     localStorage.removeItem(KEYS.ACTIVE_USER);
-    return loadProgress();
+    localStorage.removeItem(KEYS.ACTIVE_HASH);
+    notifySyncStatus("local", "本機暫存");
+    try {
+      const cached = JSON.parse(localStorage.getItem(KEYS.DEVICE_CACHE));
+      return cached ? { ...createDefaultProgress(), ...cached } : createDefaultProgress();
+    } catch (e) {
+      return createDefaultProgress();
+    }
   }
 
   function listSavedAccounts() {
@@ -150,7 +352,7 @@ const StorageManager = (() => {
   function exportBackupJSON(progress) {
     const payload = {
       app: "墨韻活字工坊",
-      version: "1.0",
+      version: "1.1",
       user: getActiveUsername() || "guest",
       exportedAt: new Date().toISOString(),
       progress
@@ -174,8 +376,8 @@ const StorageManager = (() => {
           return;
         }
         const merged = { ...createDefaultProgress(), ...parsed.progress };
-        saveProgress(merged);
-        callback({ ok: true, progress: merged, message: "進度備份檔匯入成功！" });
+        saveProgress(merged, { immediate: true });
+        callback({ ok: true, progress: merged, message: "進度備份檔匯入並同步成功！" });
       } catch (err) {
         callback({ ok: false, message: "JSON 解析失敗，請確認檔案是否損毀。" });
       }
@@ -186,31 +388,16 @@ const StorageManager = (() => {
   return {
     loadProgress,
     saveProgress,
+    saveCloudDataNow,
+    syncFromCloudOnBoot,
     getActiveUsername,
-    loginOrRegister,
-    switchAccountDirect,
+    isCloudLoggedIn,
+    registerUser,
+    loginUser,
     logoutToGuest,
     listSavedAccounts,
     exportBackupJSON,
-    importBackupJSON
+    importBackupJSON,
+    setSyncStatusListener
   };
 })();
-
-/**
- * 雲端同步擴充介接層 (若未來串接 Firebase / Supabase / 自建後端 API 可在此實作)
- */
-const CloudSyncAdapter = {
-  endpoint: null, // 例如: "https://your-api.example.com/api/sync"
-  async push(username, progress) {
-    if (!this.endpoint || !username) return;
-    try {
-      await fetch(this.endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, progress })
-      });
-    } catch (err) {
-      console.warn("雲端同步暫時離線，已安全保存於本機裝置暫存。", err);
-    }
-  }
-};
