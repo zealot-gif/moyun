@@ -1,9 +1,5 @@
 /**
  * 墨韻活字工坊 - 金幣經濟與信用卡結帳串接模組 (payment.js)
- * 支援卡別自動辨識與檢核：
- * - VISA (4 開頭，16 碼)
- * - Mastercard (51–55 或 2221–2720 開頭，16 碼)
- * - JCB (3528–3589 開頭，16 碼)
  */
 
 const PaymentManager = (() => {
@@ -13,7 +9,6 @@ const PaymentManager = (() => {
     jcb:  { number: "3530 1113 3330 0000", name: "CHEN JUN HONG", exp: "05/30", cvv: "358" }
   };
 
-  // 可選：若您有串接第三方金流後端驗證 API（如綠界/藍新/TapPay），可填入此端點
   const PAYMENT_GATEWAY_ENDPOINT = null;
 
   function detectCardNetwork(rawNumber) {
@@ -82,9 +77,6 @@ const PaymentManager = (() => {
     return digits;
   }
 
-  /**
-   * 執行信用卡授權驗證、入帳並串接雲端存檔
-   */
   async function processCardPayment({ cardNumber, cardName, expiry, cvv, coins, priceTWD, currentState }) {
     const info = detectCardNetwork(cardNumber);
     if (!["VISA", "MASTERCARD", "JCB"].includes(info.network)) {
@@ -106,7 +98,6 @@ const PaymentManager = (() => {
     const last4 = cardNumber.replace(/\D/g, "").slice(-4);
     const txId = "TX-" + Date.now() + "-" + Math.floor(100 + Math.random() * 900);
 
-    // 若已串接真實金流閘道 API，發送授權請求
     if (PAYMENT_GATEWAY_ENDPOINT) {
       try {
         const gwRes = await fetch(PAYMENT_GATEWAY_ENDPOINT, {
@@ -129,7 +120,6 @@ const PaymentManager = (() => {
         return { ok: false, message: "金流閘道連線異常，請稍後再試。" };
       }
     } else {
-      // 模擬銀行授權延遲
       await new Promise((resolve) => setTimeout(resolve, 650));
     }
 
@@ -142,7 +132,6 @@ const PaymentManager = (() => {
       paidAt: new Date().toISOString()
     };
 
-    // 若傳入目前遊戲狀態，直接更新金幣並強制立即同步至雲端（GAS Users + Payments 工作表）
     if (currentState) {
       currentState.coins += coins;
       if (!Array.isArray(currentState.paymentHistory)) {

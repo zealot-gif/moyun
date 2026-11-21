@@ -1,27 +1,16 @@
 /**
- * 墨韻活字工坊 - 核心遊戲控制器 (app.js)
- * 整合：110 階造字合成、階段寶箱開啟動畫、金幣提示購買、帳號與裝置暫存
+ * 墨韻活字工坊 - 主應用程式控制器 (app.js)
  */
 
-document.addEventListener("DOMContentLoaded", () => {
-  // 載入玩家進度（優先載入登入帳號存檔，否則讀取裝置暫存）
+(() => {
+  // 1. 載入初始進度狀態
   let state = StorageManager.loadProgress();
-  let currentLayout = "lr";
-  let slots = ["", ""];
-  let currentFilter = "all";
-  let searchQuery = "";
-  let selectedPackage = { coins: 120, price: 30 };
+  let selectedSlots = [null, null];
+  let currentCollectionTab = "current";
+  let lastUnlockedResult = null;
+  let selectedPackage = { coins: 100, price: 30 };
 
-  const LAYOUT_CONFIG = {
-    lr:   { count: 2, labels: ["左部", "右部"], name: "左右結構" },
-    tb:   { count: 2, labels: ["上部", "下部"], name: "上下結構" },
-    tri:  { count: 3, labels: ["第一部", "第二部", "第三部"], name: "三疊 / 品字結構" },
-    enc:  { count: 2, labels: ["外框 / 半包", "內部"], name: "包圍結構" },
-    quad: { count: 4, labels: ["一", "二", "三", "四"], name: "四疊結構" },
-    quin: { count: 5, labels: ["一", "二", "三", "四", "五"], name: "五元神字結構" }
-  };
-
-  // ================= 簡易 Web Audio 音效（無需外部音檔） =================
+  // 簡易 Web Audio 音效合成器
   const SoundFX = (() => {
     let ctx = null;
     function getCtx() {
@@ -30,600 +19,567 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       return ctx;
     }
-    function playTone(freq, duration = 0.12, type = "triangle", gainVal = 0.12) {
-      try {
-        const audio = getCtx();
-        if (!audio) return;
-        const osc = audio.createOscillator();
-        const gain = audio.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audio.currentTime);
-        gain.gain.setValueAtTime(gainVal, audio.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audio.destination);
-        osc.start();
-        osc.stop(audio.currentTime + duration);
-      } catch (e) {}
+    function playTone(freq, duration = 0.14, type = "sine", delay = 0) {
+      const audio = getCtx();
+      if (!audio) return;
+      if (audio.state === "suspended") audio.resume();
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audio.currentTime + delay);
+      gain.gain.setValueAtTime(0.08, audio.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + delay + duration);
+      osc.connect(gain);
+      gain.connect(audio.destination);
+      osc.start(audio.currentTime + delay);
+      osc.stop(audio.currentTime + delay + duration);
     }
     return {
-      clack: () => playTone(320, 0.08, "triangle", 0.15),
+      click: () => playTone(520, 0.07, "triangle"),
       success: () => {
-        playTone(523.25, 0.14, "sine", 0.14);
-        setTimeout(() => playTone(659.25, 0.16, "sine", 0.14), 90);
-        setTimeout(() => playTone(783.99, 0.25, "sine", 0.15), 180);
+        playTone(523.25, 0.12, "sine", 0);
+        playTone(659.25, 0.12, "sine", 0.09);
+        playTone(783.99, 0.22, "sine", 0.18);
       },
+      chest: () => {
+        playTone(587.33, 0.12, "triangle", 0);
+        playTone(739.99, 0.12, "triangle", 0.1);
+        playTone(880, 0.14, "triangle", 0.2);
+        playTone(1174.66, 0.3, "triangle", 0.32);
+      },
+      error: () => playTone(220, 0.18, "sawtooth"),
       coin: () => {
-        playTone(987.77, 0.1, "sine", 0.12);
-        setTimeout(() => playTone(1318.51, 0.22, "sine", 0.14), 80);
-      },
-      chestOpen: () => {
-        [440, 554.37, 659.25, 880].forEach((f, idx) => {
-          setTimeout(() => playTone(f, 0.28, "triangle", 0.16), idx * 110);
-        });
-      },
-      error: () => playTone(180, 0.18, "sawtooth", 0.09)
+        playTone(987.77, 0.09, "sine", 0);
+        playTone(1318.51, 0.22, "sine", 0.08);
+      }
     };
   })();
 
-  // ================= DOM 參照 =================
+  // DOM 參照
   const elStageSelect = document.getElementById("stage-select");
-  const elStageSubtitle = document.getElementById("stage-subtitle");
-  const elProgressFill = document.getElementById("stage-progress-fill");
-  const elProgressText = document.getElementById("stage-progress-text");
-  const elChestBtn = document.getElementById("btn-stage-chest");
-  const elChestIcon = document.getElementById("chest-btn-icon");
-  const elChestTitle = document.getElementById("chest-btn-title");
-  const elChestSub = document.getElementById("chest-btn-sub");
-  const elTileInventory = document.getElementById("tile-inventory");
-  const elInventoryCount = document.getElementById("inventory-count");
-  const elWorkbenchSlots = document.getElementById("workbench-slots");
-  const elForgeFeedback = document.getElementById("forge-feedback");
-  const elTargetList = document.getElementById("stage-target-list");
-  const elCodexCount = document.getElementById("stage-codex-count");
-  const elCoinBalance = document.getElementById("coin-balance");
-  const elHintCoinDisplay = document.getElementById("hint-coin-display");
-  const elPurchasedHintsList = document.getElementById("purchased-hints-list");
-  const elCurrentUserLabel = document.getElementById("current-user-label");
+  const elRadicalSearch = document.getElementById("radical-search");
+  const elRadicalsContainer = document.getElementById("radicals-container");
+  const elSlotA = document.getElementById("slot-a");
+  const elSlotB = document.getElementById("slot-b");
+  const elSlotAName = document.getElementById("slot-a-name");
+  const elSlotBName = document.getElementById("slot-b-name");
+  const elFeedback = document.getElementById("forge-feedback");
+  const elResultEmpty = document.getElementById("result-empty");
+  const elResultContent = document.getElementById("result-content");
+  const elChestGrid = document.getElementById("chest-grid");
+  const elCollectionContainer = document.getElementById("collection-container");
+  const elSyncDot = document.getElementById("sync-dot");
+  const elSyncStatusTag = document.getElementById("sync-status-tag");
 
-  // ================= 資料輔助計算 =================
-  function getStageObj(stageNum) {
-    return STAGES_DATA.find((s) => s.stage === stageNum) || STAGES_DATA[0];
-  }
-
-  // 取得玩家目前已擁有的所有基礎部件（第 1 階至 maxStageUnlocked）
-  function getAvailableBaseComponents() {
-    const set = new Set();
-    for (const st of STAGES_DATA) {
-      if (st.stage <= state.maxStageUnlocked) {
-        st.components.forEach((c) => set.add(c));
-      }
+  // 監聽雲端同步狀態燈號
+  StorageManager.setSyncStatusListener((status, text) => {
+    if (elSyncStatusTag) elSyncStatusTag.textContent = text;
+    if (elSyncDot) {
+      elSyncDot.className = "status-dot " + (status === "synced" || status === "local" ? "online" : "offline");
     }
-    return set;
-  }
+  });
 
-  function persistState() {
-    StorageManager.saveProgress(state);
+  function persistState(options = {}) {
+    StorageManager.saveProgress(state, options);
     updateHeaderStatus();
   }
 
   function updateHeaderStatus() {
-    const activeUser = StorageManager.getActiveUsername();
-    elCurrentUserLabel.textContent = activeUser ? `帳號：${activeUser}` : "訪客（本機暫存）";
-    elCoinBalance.textContent = state.coins;
-    elHintCoinDisplay.textContent = state.coins;
+    const activeStage = state.activeStage;
+    const stageChars = GameDataHelpers.getCharactersByStage(activeStage);
+    const unlockedInStage = stageChars.filter((c) => state.unlockedChars.includes(c.char));
+
+    document.getElementById("header-stage-label").textContent = `第 ${activeStage} 階（最高 ${state.maxStageUnlocked} 階）`;
+    document.getElementById("header-stage-progress").textContent = `${unlockedInStage.length} / ${stageChars.length}`;
+    document.getElementById("header-coins").textContent = state.coins;
+    document.getElementById("total-unlocked-badge").textContent = `總解鎖：${state.unlockedChars.length} / ${CHARACTER_RECIPES.length} 字`;
+
+    const user = StorageManager.getActiveUsername();
+    document.getElementById("header-username").textContent = user ? user : "訪客模式";
+    if (!user) {
+      document.getElementById("sync-status-tag").textContent = "本機暫存";
+    }
   }
 
-  // ================= 初始化階段下拉選單 =================
+  function setFeedback(message, type = "neutral") {
+    elFeedback.textContent = message;
+    elFeedback.className = "feedback-banner";
+    if (type === "success") elFeedback.classList.add("success");
+    if (type === "error") elFeedback.classList.add("error");
+  }
+
   function populateStageDropdown() {
     elStageSelect.innerHTML = "";
-    STAGES_DATA.forEach((st) => {
+    STAGE_CONFIG.forEach((st) => {
       const opt = document.createElement("option");
-      opt.value = st.stage;
       const locked = st.stage > state.maxStageUnlocked;
+      opt.value = st.stage;
       opt.disabled = locked;
       opt.textContent = locked
-        ? `🔒 第 ${st.stage} 階：${st.title}（需開啟前階寶箱）`
+        ? `🔒 第 ${st.stage} 階：${st.title}（未解鎖）`
         : `第 ${st.stage} 階：${st.title}`;
       if (st.stage === state.activeStage) opt.selected = true;
       elStageSelect.appendChild(opt);
     });
   }
 
-  // ================= 渲染左側活字字庫 =================
-  function renderInventory() {
-    const currentStageObj = getStageObj(state.activeStage);
-    const stageNewSet = new Set(currentStageObj.components);
-    const baseSet = getAvailableBaseComponents();
-    const craftedSet = new Set(state.unlockedChars);
-
-    // 合併所有可用活字塊（基礎部件 + 已造出漢字）
-    const allTiles = [];
-    baseSet.forEach((ch) => {
-      allTiles.push({
-        char: ch,
-        isBase: true,
-        isStageNew: stageNewSet.has(ch),
-        isCrafted: false
-      });
+  function renderRadicals() {
+    const keyword = elRadicalSearch.value.trim();
+    const availableRadicals = GameDataHelpers.getRadicalsUpToStage(state.maxStageUnlocked);
+    const filtered = availableRadicals.filter((r) => {
+      if (!keyword) return true;
+      return (
+        r.char.includes(keyword) ||
+        r.name.includes(keyword) ||
+        r.meaning.includes(keyword) ||
+        `第${r.stage}階`.includes(keyword)
+      );
     });
-    craftedSet.forEach((ch) => {
-      if (!baseSet.has(ch)) {
-        allTiles.push({
-          char: ch,
-          isBase: false,
-          isStageNew: false,
-          isCrafted: true
+
+    elRadicalsContainer.innerHTML = "";
+
+    const byStage = {};
+    filtered.forEach((r) => {
+      if (!byStage[r.stage]) byStage[r.stage] = [];
+      byStage[r.stage].push(r);
+    });
+
+    const stageNums = Object.keys(byStage).map(Number).sort((a, b) => a - b);
+    if (stageNums.length === 0) {
+      elRadicalsContainer.innerHTML = `<div class="empty-hint-msg">找不到符合「${keyword}」的已解鎖偏旁。</div>`;
+      return;
+    }
+
+    stageNums.forEach((stNum) => {
+      const stInfo = GameDataHelpers.getStageInfo(stNum);
+      const groupDiv = document.createElement("div");
+      groupDiv.className = "radical-stage-group";
+      groupDiv.innerHTML = `<div class="group-title">第 ${stNum} 階部首・${stInfo ? stInfo.title : ""}</div>`;
+
+      const grid = document.createElement("div");
+      grid.className = "radical-grid";
+
+      byStage[stNum].forEach((rad) => {
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "radical-tile";
+        card.draggable = true;
+        if (selectedSlots[0] === rad.char || selectedSlots[1] === rad.char) {
+          card.classList.add("in-use");
+        }
+        card.innerHTML = `
+          <span class="rad-char">${rad.char}</span>
+          <span class="rad-name">${rad.name}</span>
+          <span class="rad-meaning">${rad.meaning}</span>
+        `;
+
+        card.addEventListener("click", () => {
+          SoundFX.click();
+          placeRadicalInSlot(rad.char);
         });
-      }
-    });
 
-    const filtered = allTiles.filter((item) => {
-      if (searchQuery && !item.char.includes(searchQuery)) return false;
-      if (currentFilter === "stage-new") return item.isStageNew;
-      if (currentFilter === "radicals") return item.isBase;
-      if (currentFilter === "crafted") return item.isCrafted;
-      return true;
-    });
+        card.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", rad.char);
+        });
 
-    elInventoryCount.textContent = filtered.length;
-    elTileInventory.innerHTML = "";
-
-    filtered.forEach((item) => {
-      const tile = document.createElement("div");
-      tile.className = "wood-tile";
-      if (item.isStageNew) tile.classList.add("is-new");
-      if (item.isCrafted) tile.classList.add("is-crafted");
-      tile.draggable = true;
-
-      const transformInfo = RADICAL_TRANSFORMS[item.char];
-      let variantText = "";
-      if (transformInfo) {
-        variantText = transformInfo.left || transformInfo.top || transformInfo.right || "";
-      }
-
-      tile.innerHTML = `
-        ${item.isStageNew ? '<span class="tile-new-dot">新</span>' : ""}
-        <span class="tile-char">${item.char}</span>
-        ${variantText ? `<span class="tile-variant-hint">偏旁:${variantText}</span>` : ""}
-      `;
-
-      // 點擊自動填入第一個空槽位
-      tile.addEventListener("click", () => {
-        placeCharIntoFirstEmptySlot(item.char);
+        grid.appendChild(card);
       });
 
-      // 拖曳開始
-      tile.addEventListener("dragstart", (e) => {
-        e.dataTransfer.setData("text/plain", item.char);
-      });
-
-      elTileInventory.appendChild(tile);
+      groupDiv.appendChild(grid);
+      elRadicalsContainer.appendChild(groupDiv);
     });
   }
 
-  // ================= 渲染中間合成盤面 =================
-  function getContextualDisplay(char, layout, slotIndex) {
-    const rule = RADICAL_TRANSFORMS[char];
-    if (!rule) return { display: char, note: "" };
-
-    if (layout === "lr" && slotIndex === 0 && rule.left) {
-      return { display: rule.left, note: `${char}→${rule.left}` };
-    }
-    if (layout === "lr" && slotIndex === 1 && rule.right) {
-      return { display: rule.right, note: `${char}→${rule.right}` };
-    }
-    if (layout === "tb" && slotIndex === 0 && rule.top) {
-      return { display: rule.top, note: `${char}→${rule.top}` };
-    }
-    if (layout === "tb" && slotIndex === 1 && rule.bottom) {
-      return { display: rule.bottom, note: `${char}→${rule.bottom}` };
-    }
-    return { display: char, note: "" };
-  }
-
-  function renderWorkbench() {
-    const cfg = LAYOUT_CONFIG[currentLayout];
-    if (slots.length !== cfg.count) {
-      const old = [...slots];
-      slots = Array(cfg.count).fill("");
-      for (let i = 0; i < Math.min(old.length, cfg.count); i++) {
-        slots[i] = old[i];
-      }
-    }
-
-    elWorkbenchSlots.className = `slots-container layout-${currentLayout}`;
-    elWorkbenchSlots.innerHTML = "";
-
-    slots.forEach((ch, idx) => {
-      const slotEl = document.createElement("div");
-      slotEl.className = "forge-slot" + (ch ? " filled" : "");
-      const ctx = ch ? getContextualDisplay(ch, currentLayout, idx) : { display: "", note: "" };
-
-      slotEl.innerHTML = `
-        <span class="slot-pos-label">${cfg.labels[idx]}</span>
-        <span class="slot-char">${ctx.display}</span>
-        ${ctx.note ? `<span class="slot-transform-note">${ctx.note}</span>` : ""}
-      `;
-
-      // 點擊已填入的槽位可移除該部件
-      slotEl.addEventListener("click", () => {
-        if (slots[idx]) {
-          slots[idx] = "";
-          SoundFX.clack();
-          renderWorkbench();
-        }
-      });
-
-      // 支援拖放
-      slotEl.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        slotEl.classList.add("drag-over");
-      });
-      slotEl.addEventListener("dragleave", () => {
-        slotEl.classList.remove("drag-over");
-      });
-      slotEl.addEventListener("drop", (e) => {
-        e.preventDefault();
-        slotEl.classList.remove("drag-over");
-        const droppedChar = e.dataTransfer.getData("text/plain");
-        if (droppedChar) {
-          slots[idx] = droppedChar;
-          SoundFX.clack();
-          renderWorkbench();
-        }
-      });
-
-      elWorkbenchSlots.appendChild(slotEl);
-    });
-  }
-
-  function placeCharIntoFirstEmptySlot(char) {
-    const emptyIdx = slots.findIndex((s) => !s);
-    if (emptyIdx !== -1) {
-      slots[emptyIdx] = char;
+  function placeRadicalInSlot(radChar) {
+    if (!selectedSlots[0]) {
+      selectedSlots[0] = radChar;
+    } else if (!selectedSlots[1]) {
+      selectedSlots[1] = radChar;
     } else {
-      slots[slots.length - 1] = char;
+      selectedSlots[0] = selectedSlots[1];
+      selectedSlots[1] = radChar;
     }
-    SoundFX.clack();
-    renderWorkbench();
+    renderSlots();
+    renderRadicals();
   }
 
-  // ================= 合成判定引擎 =================
-  function arraysEqual(a, b) {
-    if (a.length !== b.length) return false;
-    return a.every((val, i) => val === b[i]);
-  }
-
-  function arraysSameMultiset(a, b) {
-    if (a.length !== b.length) return false;
-    const sa = [...a].sort();
-    const sb = [...b].sort();
-    return sa.every((val, i) => val === sb[i]);
-  }
-
-  function attemptForge() {
-    if (slots.some((s) => !s)) {
-      setFeedback("請先將所有活字槽位填滿後再點擊「落印合成」。", "error");
-      SoundFX.error();
-      return;
-    }
-
-    // 搜尋全 110 階中（已解鎖階數內）符合的目標字
-    const unlockedStagePool = STAGES_DATA.filter((s) => s.stage <= state.maxStageUnlocked);
-    let exactMatch = null;
-    let unorderedMatch = null;
-    let wrongLayoutMatch = null;
-
-    for (const st of unlockedStagePool) {
-      for (const target of st.targets) {
-        for (const recipe of target.recipes) {
-          if (target.layout === currentLayout && arraysEqual(slots, recipe)) {
-            exactMatch = { target, stage: st.stage };
-            break;
-          }
-          if (target.layout === currentLayout && !target.twin && arraysSameMultiset(slots, recipe)) {
-            unorderedMatch = { target, stage: st.stage };
-          }
-          if (target.layout !== currentLayout && arraysSameMultiset(slots, recipe)) {
-            wrongLayoutMatch = { target, stage: st.stage };
-          }
-        }
-        if (exactMatch) break;
-      }
-      if (exactMatch) break;
-    }
-
-    const matched = exactMatch || unorderedMatch;
-    if (matched) {
-      const { target } = matched;
-      const isFirstUnlock = !state.unlockedChars.includes(target.char);
-      if (isFirstUnlock) {
-        state.unlockedChars.push(target.char);
-        const coinGain = target.twin ? 15 : 10;
-        state.coins += coinGain;
-        SoundFX.success();
-        const twinMsg = target.twin ? `（雙子星提示：互換位置或改換結構還能造出「${target.twin}」！）` : "";
-        setFeedback(`✨ 造字成功！【${target.char}】— ${target.hint}（+${coinGain} 🪙）${twinMsg}`, "success");
+  function renderSlots() {
+    [elSlotA, elSlotB].forEach((slotEl, idx) => {
+      const val = selectedSlots[idx];
+      const captionEl = idx === 0 ? elSlotAName : elSlotBName;
+      if (val) {
+        const info = GameDataHelpers.getRadicalInfo(val);
+        slotEl.classList.add("filled");
+        slotEl.innerHTML = `<span class="slot-char">${val}</span>`;
+        captionEl.textContent = info ? `${info.name}（${info.meaning}）` : val;
       } else {
-        SoundFX.clack();
-        setFeedback(`已重現漢字【${target.char}】：${target.hint}`, "success");
+        slotEl.classList.remove("filled");
+        slotEl.innerHTML = `<span class="slot-placeholder">${idx === 0 ? "偏旁一" : "偏旁二"}</span>`;
+        captionEl.textContent = idx === 0 ? "點擊左側部首放入" : "點擊第二個部首";
       }
-
-      slots = Array(LAYOUT_CONFIG[currentLayout].count).fill("");
-      persistState();
-      renderAll();
-      return;
-    }
-
-    if (wrongLayoutMatch) {
-      const correctLayoutName = LAYOUT_CONFIG[wrongLayoutMatch.target.layout].name;
-      setFeedback(`💡 部件組合正確，但排版結構不符！試試切換為「${correctLayoutName}」再試一次。`, "error");
-      SoundFX.error();
-      return;
-    }
-
-    setFeedback("此組部件尚未構成收錄漢字，試試調整部件順序或購買錦囊線索。", "error");
-    SoundFX.error();
-  }
-
-  function setFeedback(msg, type = "") {
-    elForgeFeedback.textContent = msg;
-    elForgeFeedback.className = "forge-feedback" + (type ? ` ${type}` : "");
-  }
-
-  // ================= 階段進度與寶箱狀態 =================
-  function renderStageProgressAndCodex() {
-    const st = getStageObj(state.activeStage);
-    elStageSubtitle.textContent = st.subtitle;
-
-    const unlockedInStage = st.targets.filter((t) => state.unlockedChars.includes(t.char));
-    const totalInStage = st.targets.length;
-    const pct = totalInStage ? Math.round((unlockedInStage.length / totalInStage) * 100) : 0;
-
-    elProgressFill.style.width = `${pct}%`;
-    elCodexCount.textContent = `${unlockedInStage.length}/${totalInStage}`;
-
-    const chestOpened = state.openedChests.includes(st.stage);
-    const chestReady = unlockedInStage.length >= st.unlockThreshold;
-
-    if (chestOpened) {
-      elProgressText.textContent = `已解鎖 ${unlockedInStage.length} / ${totalInStage} 字（本階傳承寶箱已開啟）`;
-      elChestBtn.className = "chest-trigger-btn opened";
-      elChestIcon.textContent = "📭";
-      elChestTitle.textContent = "寶箱已領取";
-      elChestSub.textContent = st.stage < 110 ? `第 ${st.stage + 1} 階已開啟` : "已達造字宗師";
-    } else if (chestReady) {
-      elProgressText.textContent = `已解鎖 ${unlockedInStage.length} / ${totalInStage} 字（✨ 已達寶箱開啟條件！）`;
-      elChestBtn.className = "chest-trigger-btn ready";
-      elChestIcon.textContent = "🎁";
-      elChestTitle.textContent = "開啟階段寶箱！";
-      elChestSub.textContent = "點擊領取下階新部件";
-    } else {
-      const remain = st.unlockThreshold - unlockedInStage.length;
-      elProgressText.textContent = `已解鎖 ${unlockedInStage.length} / ${totalInStage} 字（開啟寶箱需 ${st.unlockThreshold} 字）`;
-      elChestBtn.className = "chest-trigger-btn locked";
-      elChestIcon.textContent = "🔒";
-      elChestTitle.textContent = "下階傳承寶箱";
-      elChestSub.textContent = `尚差 ${remain} 字解鎖`;
-    }
-
-    // 渲染右側本階字譜
-    elTargetList.innerHTML = "";
-    st.targets.forEach((t) => {
-      const isUnlocked = state.unlockedChars.includes(t.char);
-      const card = document.createElement("div");
-      card.className = "target-card" + (isUnlocked ? " unlocked" : "");
-      const formulaStr = t.recipes[0].join(" + ");
-
-      card.innerHTML = `
-        <div class="target-char-box">${isUnlocked ? t.char : "？"}</div>
-        <div class="target-meta">
-          <div class="target-formula">${isUnlocked ? `${t.char} ＝ ${formulaStr}` : `${LAYOUT_CONFIG[t.layout].name}・${t.recipes[0].length} 部件`}</div>
-          <div class="target-desc" title="${t.hint}">${isUnlocked ? t.hint : "尚未造出，可點擊或買錦囊探索"}</div>
-        </div>
-        ${t.twin ? `<span class="twin-badge">⇄ 雙子星</span>` : ""}
-      `;
-      elTargetList.appendChild(card);
     });
-
-    renderPurchasedHints();
   }
 
-  // ================= 階段寶箱開啟動畫與領取 =================
-  function openChestModal() {
-    const st = getStageObj(state.activeStage);
-    const unlockedCount = st.targets.filter((t) => state.unlockedChars.includes(t.char)).length;
-
-    if (unlockedCount < st.unlockThreshold && !state.openedChests.includes(st.stage)) {
-      setFeedback(`尚需在本階造出 ${st.unlockThreshold - unlockedCount} 個字，才能解開青銅寶箱鎖扣！`, "error");
-      SoundFX.error();
-      return;
-    }
-
-    const modal = document.getElementById("chest-modal");
-    const boxArt = document.getElementById("chest-box-art");
-    const revealArea = document.getElementById("chest-rewards-reveal");
-
-    document.getElementById("chest-modal-badge").textContent = `第 ${st.stage} 階「${st.title}」達成`;
-    document.getElementById("chest-modal-title").textContent =
-      st.stage < 110 ? `開啟第 ${st.stage + 1} 階傳承寶箱` : "開啟造字宗師終極寶箱";
-
-    boxArt.classList.remove("opened", "shaking");
-    revealArea.classList.add("hidden");
-    modal.classList.remove("hidden");
-
-    // 若之前已開過，直接顯示內容
-    if (state.openedChests.includes(st.stage)) {
-      revealChestContents(st, true);
-    }
-  }
-
-  function revealChestContents(currentStageObj, alreadyOpened = false) {
-    const boxArt = document.getElementById("chest-box-art");
-    const revealArea = document.getElementById("chest-rewards-reveal");
-    const newCardsRow = document.getElementById("chest-new-cards");
-    const coinBanner = document.getElementById("chest-coin-banner");
-    const claimBtn = document.getElementById("btn-claim-next-stage");
-
-    boxArt.classList.add("opened");
-    if (!alreadyOpened) {
-      SoundFX.chestOpen();
-      state.openedChests.push(currentStageObj.stage);
-      const reward = currentStageObj.stage === 110 ? 500 : currentStageObj.chestRewardCoins;
-      state.coins += reward;
-      if (currentStageObj.stage < 110 && state.maxStageUnlocked < currentStageObj.stage + 1) {
-        state.maxStageUnlocked = currentStageObj.stage + 1;
+  [elSlotA, elSlotB].forEach((slotEl, idx) => {
+    slotEl.addEventListener("click", () => {
+      if (selectedSlots[idx]) {
+        selectedSlots[idx] = null;
+        SoundFX.click();
+        renderSlots();
+        renderRadicals();
       }
-      persistState();
-      coinBanner.textContent = `+${reward} 🪙 寶箱金幣已入帳！`;
-    } else {
-      coinBanner.textContent = "此寶箱獎勵已領取過";
-    }
-
-    newCardsRow.innerHTML = "";
-    if (currentStageObj.stage < 110) {
-      const nextSt = getStageObj(currentStageObj.stage + 1);
-      nextSt.components.forEach((comp, i) => {
-        const card = document.createElement("div");
-        card.className = "reveal-tile";
-        card.style.animationDelay = `${i * 0.1}s`;
-        card.innerHTML = `<span>${comp}</span><small>第 ${nextSt.stage} 階</small>`;
-        newCardsRow.appendChild(card);
-      });
-      claimBtn.textContent = `前往第 ${nextSt.stage} 階：${nextSt.title}`;
-    } else {
-      newCardsRow.innerHTML = `<div class="reveal-tile" style="width:140px"><span>宗師</span><small>全 110 階制霸</small></div>`;
-      claimBtn.textContent = "返回工坊繼續探索";
-    }
-
-    revealArea.classList.remove("hidden");
-  }
-
-  document.getElementById("chest-interactive-box").addEventListener("click", () => {
-    const st = getStageObj(state.activeStage);
-    const boxArt = document.getElementById("chest-box-art");
-    if (boxArt.classList.contains("opened")) return;
-    boxArt.classList.add("shaking");
-    setTimeout(() => {
-      boxArt.classList.remove("shaking");
-      revealChestContents(st, state.openedChests.includes(st.stage));
-    }, 450);
+    });
+    slotEl.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      slotEl.classList.add("drag-over");
+    });
+    slotEl.addEventListener("dragleave", () => slotEl.classList.remove("drag-over"));
+    slotEl.addEventListener("drop", (e) => {
+      e.preventDefault();
+      slotEl.classList.remove("drag-over");
+      const radChar = e.dataTransfer.getData("text/plain");
+      if (radChar) {
+        selectedSlots[idx] = radChar;
+        SoundFX.click();
+        renderSlots();
+        renderRadicals();
+      }
+    });
   });
 
-  document.getElementById("btn-claim-next-stage").addEventListener("click", () => {
-    document.getElementById("chest-modal").classList.add("hidden");
-    if (state.activeStage < 110 && state.maxStageUnlocked >= state.activeStage + 1) {
-      state.activeStage += 1;
-      persistState();
+  function executeForge() {
+    const [a, b] = selectedSlots;
+    if (!a || !b) {
+      SoundFX.error();
+      setFeedback("⚠️ 請先放入兩個偏旁部首再進行拼合！", "error");
+      return;
     }
+
+    const recipe = GameDataHelpers.findRecipe(a, b);
+    if (!recipe) {
+      SoundFX.error();
+      setFeedback(`❌ 「${a}」與「${b}」目前無法組成有效漢字，試試交換其他偏旁或查看提示！`, "error");
+      return;
+    }
+
+    if (recipe.stage > state.maxStageUnlocked) {
+      SoundFX.error();
+      setFeedback(`🔒 此組合屬於「第 ${recipe.stage} 階」高階漢字，請先完成目前階級並開啟通關寶箱解鎖！`, "error");
+      return;
+    }
+
+    const isFirstTime = !state.unlockedChars.includes(recipe.char);
+    if (isFirstTime) {
+      state.unlockedChars.push(recipe.char);
+      state.coins += 10;
+      SoundFX.success();
+      setFeedback(`🎉 造字成功！解鎖新漢字「${recipe.char}」（${recipe.pinyin}），獲得 +10 🪙 金幣！`, "success");
+    } else {
+      SoundFX.click();
+      setFeedback(`📜 「${recipe.char}」（${recipe.pinyin}）已在您的典籍中，以下為詳細字義與成語典故。`, "neutral");
+    }
+
+    lastUnlockedResult = recipe;
+    showResultCard(recipe);
+    persistState();
+    renderAll();
+  }
+
+  function showResultCard(recipe) {
+    elResultEmpty.classList.add("hidden");
+    elResultContent.classList.remove("hidden");
+
+    document.getElementById("res-char").textContent = recipe.char;
+    document.getElementById("res-title").textContent = recipe.char;
+    document.getElementById("res-pinyin").textContent = recipe.pinyin;
+    document.getElementById("res-stage-badge").textContent = `第 ${recipe.stage} 階`;
+    document.getElementById("res-formula").textContent = `組合公式：${recipe.components[0]} + ${recipe.components[1]}`;
+    document.getElementById("res-meaning").textContent = recipe.meaning;
+    document.getElementById("res-idiom").textContent = recipe.idiom;
+    document.getElementById("res-idiom-desc").textContent = recipe.idiomDesc;
+  }
+
+  function renderChests() {
+    elChestGrid.innerHTML = "";
+    STAGE_CONFIG.forEach((st) => {
+      const stageChars = GameDataHelpers.getCharactersByStage(st.stage);
+      const unlockedCount = stageChars.filter((c) => state.unlockedChars.includes(c.char)).length;
+      const isComplete = unlockedCount === stageChars.length && stageChars.length > 0;
+      const isOpened = state.openedChests.includes(st.stage);
+      const isLockedStage = st.stage > state.maxStageUnlocked;
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chest-card";
+
+      let icon = "🔒";
+      let statusText = `${unlockedCount}/${stageChars.length}`;
+      if (isOpened) {
+        btn.classList.add("opened");
+        icon = "📭";
+        statusText = "已領取";
+      } else if (isComplete && !isLockedStage) {
+        btn.classList.add("ready");
+        icon = "🎁";
+        statusText = "可開啟！";
+      } else if (!isLockedStage) {
+        icon = "🧰";
+      }
+
+      btn.innerHTML = `
+        <span class="chest-icon">${icon}</span>
+        <span class="chest-stage">第 ${st.stage} 階</span>
+        <span class="chest-status">${statusText}</span>
+      `;
+
+      btn.addEventListener("click", () => {
+        if (isLockedStage) {
+          setFeedback(`🔒 尚未解鎖第 ${st.stage} 階，請先完成前置階級！`, "error");
+          return;
+        }
+        if (isOpened) {
+          setFeedback(`📦 第 ${st.stage} 階通關寶箱已經開啟過囉！`, "neutral");
+          return;
+        }
+        if (!isComplete) {
+          setFeedback(`🧰 第 ${st.stage} 階尚有 ${stageChars.length - unlockedCount} 個漢字未合成，集滿即可開啟寶箱！`, "neutral");
+          return;
+        }
+        openStageChest(st);
+      });
+
+      elChestGrid.appendChild(btn);
+    });
+  }
+
+  function openStageChest(stageCfg) {
+    state.openedChests.push(stageCfg.stage);
+    state.coins += stageCfg.chestCoins;
+
+    let unlockedNextMsg = "";
+    if (stageCfg.stage < STAGE_CONFIG.length && state.maxStageUnlocked === stageCfg.stage) {
+      state.maxStageUnlocked = stageCfg.stage + 1;
+      state.activeStage = state.maxStageUnlocked;
+      unlockedNextMsg = `並正式解鎖「第 ${state.maxStageUnlocked} 階」全新偏旁部首與高難度字庫！`;
+    } else {
+      unlockedNextMsg = "您已完成全部 8 階漢字造字大師試煉！";
+    }
+
+    SoundFX.chest();
+    // 開啟寶箱屬於重要進度節點，立即強制上雲同步
+    persistState({ immediate: true });
     populateStageDropdown();
     renderAll();
-  });
 
-  // ================= 金幣購買提示系統 =================
-  const HINT_PRICES = { 1: 15, 2: 30, 3: 60 };
+    document.getElementById("chest-modal-title").textContent = `🎉 第 ${stageCfg.stage} 階通關寶箱開啟！`;
+    document.getElementById("chest-modal-subtitle").textContent =
+      `您已集滿「${stageCfg.title}」全部漢字，${unlockedNextMsg}`;
+    document.getElementById("chest-reward-box").innerHTML = `
+      <div class="reward-item">🪙 寶箱金幣獎勵：<strong>+${stageCfg.chestCoins} 金幣</strong></div>
+      <div class="reward-item">🔓 解鎖權限：<strong>${stageCfg.stage < 8 ? `開放第 ${stageCfg.stage + 1} 階偏旁與漢字` : "全圖鑑制霸榮譽"}</strong></div>
+    `;
+    document.getElementById("chest-modal").classList.remove("hidden");
+  }
 
-  function buyHint(tier) {
-    const cost = HINT_PRICES[tier];
-    if (state.coins < cost) {
-      setFeedback(`金幣不足（需要 ${cost} 🪙）！可點擊右上角「+ 儲值」購買金幣。`, "error");
-      SoundFX.error();
-      return;
-    }
+  function renderCollection() {
+    elCollectionContainer.innerHTML = "";
 
-    const st = getStageObj(state.activeStage);
-    const remaining = st.targets.filter((t) => !state.unlockedChars.includes(t.char));
-    if (remaining.length === 0) {
-      setFeedback("本階所有漢字皆已解鎖，無需購買線索！", "success");
-      return;
-    }
-
-    const target = remaining[0];
-    let hintText = "";
-    if (tier === 1) {
-      hintText = `【字義暗示】目標字含義：「${target.hint}」`;
-    } else if (tier === 2) {
-      hintText = `【結構與首部】排版為「${LAYOUT_CONFIG[target.layout].name}」，包含部件「${target.recipes[0][0]}」`;
+    let list = [];
+    if (currentCollectionTab === "current") {
+      list = GameDataHelpers.getCharactersByStage(state.activeStage).filter((c) =>
+        state.unlockedChars.includes(c.char)
+      );
     } else {
-      hintText = `【完整配方】${target.recipes[0].join(" + ")} （${LAYOUT_CONFIG[target.layout].name}）＝「${target.char}」`;
+      list = CHARACTER_RECIPES.filter((c) => state.unlockedChars.includes(c.char));
     }
 
-    state.coins -= cost;
-    const key = String(state.activeStage);
-    if (!state.purchasedHints[key]) state.purchasedHints[key] = [];
-    state.purchasedHints[key].unshift(hintText);
+    if (list.length === 0) {
+      elCollectionContainer.innerHTML = `
+        <div class="empty-hint-msg">
+          此分類尚無已合成的漢字。<br/>快在中間造字台拼合偏旁，點亮您的漢字典籍吧！
+        </div>`;
+      return;
+    }
 
+    if (currentCollectionTab === "idioms") {
+      list.forEach((item) => {
+        const div = document.createElement("div");
+        div.className = "idiom-collection-card";
+        div.innerHTML = `
+          <div class="idiom-card-top">
+            <span class="mini-char">${item.char}</span>
+            <strong>${item.idiom}</strong>
+            <span class="stage-mini">第 ${item.stage} 階</span>
+          </div>
+          <p>${item.idiomDesc}</p>
+        `;
+        div.addEventListener("click", () => {
+          showResultCard(item);
+          SoundFX.click();
+        });
+        elCollectionContainer.appendChild(div);
+      });
+      return;
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "char-collection-grid";
+    list.forEach((item) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "char-card";
+      if (lastUnlockedResult && lastUnlockedResult.char === item.char) {
+        btn.classList.add("active");
+      }
+      btn.innerHTML = `
+        <span class="c-char">${item.char}</span>
+        <span class="c-pinyin">${item.pinyin}</span>
+        <span class="c-formula">${item.components[0]}+${item.components[1]}</span>
+      `;
+      btn.addEventListener("click", () => {
+        lastUnlockedResult = item;
+        showResultCard(item);
+        renderCollection();
+        SoundFX.click();
+      });
+      grid.appendChild(btn);
+    });
+    elCollectionContainer.appendChild(grid);
+  }
+
+  function renderHintModal() {
+    const stageNum = state.activeStage;
+    const stageChars = GameDataHelpers.getCharactersByStage(stageNum);
+    const unlockedHints = state.purchasedHints[stageNum] || [];
+    const lockedChars = stageChars.filter((c) => !state.unlockedChars.includes(c.char));
+
+    const elHintList = document.getElementById("hint-list");
+    const elBuyBtn = document.getElementById("btn-buy-hint");
+    const elGotoShop = document.getElementById("btn-goto-shop-from-hint");
+
+    elHintList.innerHTML = "";
+
+    if (unlockedHints.length === 0) {
+      elHintList.innerHTML = `<div class="empty-hint-msg">本階級尚未購買任何提示。點擊下方按鈕花費 25 🪙 獲取線索！</div>`;
+    } else {
+      unlockedHints.forEach((charKey) => {
+        const rec = CHARACTER_RECIPES.find((r) => r.char === charKey);
+        if (!rec) return;
+        const isSolved = state.unlockedChars.includes(rec.char);
+        const div = document.createElement("div");
+        div.className = "hint-item" + (isSolved ? " solved" : "");
+        div.innerHTML = `
+          <div class="hint-head">
+            <span>${isSolved ? `✅ 已合成：<strong>${rec.char}</strong>（${rec.pinyin}）` : `🔍 目標漢字線索（讀音：${rec.pinyin}）`}</span>
+            <span>公式提示：<strong>${rec.components[0]}</strong> + ？</span>
+          </div>
+          <p class="hint-body">字義提示：${rec.meaning}（成語：${rec.idiom}）</p>
+        `;
+        elHintList.appendChild(div);
+      });
+    }
+
+    const unhintedLocked = lockedChars.filter((c) => !unlockedHints.includes(c.char));
+    if (lockedChars.length === 0) {
+      elBuyBtn.disabled = true;
+      elBuyBtn.textContent = "本階級漢字已全部解鎖！";
+      elGotoShop.classList.add("hidden");
+    } else if (unhintedLocked.length === 0) {
+      elBuyBtn.disabled = true;
+      elBuyBtn.textContent = "本階級所有未解鎖字提示皆已開啟";
+      elGotoShop.classList.add("hidden");
+    } else if (state.coins < 25) {
+      elBuyBtn.disabled = true;
+      elBuyBtn.textContent = `金幣不足（目前 ${state.coins} 🪙，需要 25 🪙）`;
+      elGotoShop.classList.remove("hidden");
+    } else {
+      elBuyBtn.disabled = false;
+      elBuyBtn.textContent = `花費 25 🪙 獲取新提示（剩餘 ${unhintedLocked.length} 條）`;
+      elGotoShop.classList.add("hidden");
+    }
+  }
+
+  document.getElementById("btn-buy-hint").addEventListener("click", () => {
+    const stageNum = state.activeStage;
+    const stageChars = GameDataHelpers.getCharactersByStage(stageNum);
+    if (!state.purchasedHints[stageNum]) state.purchasedHints[stageNum] = [];
+
+    const candidates = stageChars.filter(
+      (c) => !state.unlockedChars.includes(c.char) && !state.purchasedHints[stageNum].includes(c.char)
+    );
+    if (candidates.length === 0 || state.coins < 25) return;
+
+    const target = candidates[Math.floor(Math.random() * candidates.length)];
+    state.coins -= 25;
+    state.purchasedHints[stageNum].push(target.char);
     SoundFX.coin();
     persistState();
-    renderPurchasedHints();
-    setFeedback(`已花費 ${cost} 🪙 開啟錦囊！線索已顯示於下方。`, "success");
-  }
+    renderHintModal();
+  });
 
-  function renderPurchasedHints() {
-    const list = state.purchasedHints[String(state.activeStage)] || [];
-    if (list.length === 0) {
-      elPurchasedHintsList.innerHTML = `<div class="empty-hint-msg">尚未購買本階提示，遇到瓶頸時可花費金幣開啟錦囊。</div>`;
-      return;
+  document.getElementById("btn-goto-shop-from-hint").addEventListener("click", () => {
+    document.getElementById("hint-modal").classList.add("hidden");
+    openShopModal();
+  });
+
+  function openShopModal() {
+    const activeUser = StorageManager.getActiveUsername();
+    const noticeEl = document.getElementById("shop-target-user");
+    if (noticeEl) {
+      noticeEl.textContent = activeUser
+        ? `${activeUser}（儲值後自動同步至雲端，跨裝置通用）`
+        : "訪客模式（建議先登入雲端帳號，以免更換裝置遺失金幣）";
     }
-    elPurchasedHintsList.innerHTML = list
-      .map((item) => `<div class="hint-item-card">${item}</div>`)
-      .join("");
+    document.getElementById("shop-modal").classList.remove("hidden");
   }
 
-  // ================= 信用卡儲值互動邏輯 =================
+  // 儲值商城與信用卡邏輯
   const elCcNumber = document.getElementById("cc-number");
   const elCcName = document.getElementById("cc-name");
   const elCcExpiry = document.getElementById("cc-expiry");
   const elCcCvv = document.getElementById("cc-cvv");
-  const elCardVisual = document.getElementById("card-visual");
-  const elNetworkLabel = document.getElementById("cc-network-label");
-  const elCcError = document.getElementById("cc-error-msg");
+  const elDetectedNet = document.getElementById("detected-network");
+  const elCcError = document.getElementById("cc-error");
   const elSubmitPayBtn = document.getElementById("btn-submit-payment");
 
-  document.querySelectorAll(".pkg-card").forEach((card) => {
-    card.addEventListener("click", () => {
-      document.querySelectorAll(".pkg-card").forEach((c) => c.classList.remove("selected"));
-      card.classList.add("selected");
+  document.querySelectorAll(".package-card").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".package-card").forEach((b) => b.classList.remove("selected"));
+      btn.classList.add("selected");
       selectedPackage = {
-        coins: parseInt(card.dataset.coins, 10),
-        price: parseInt(card.dataset.price, 10)
+        coins: parseInt(btn.dataset.coins, 10),
+        price: parseInt(btn.dataset.price, 10)
       };
       elSubmitPayBtn.textContent = `確認刷卡付款 NT$ ${selectedPackage.price}`;
+      SoundFX.click();
     });
   });
 
   elCcNumber.addEventListener("input", () => {
     elCcNumber.value = PaymentManager.formatCardNumber(elCcNumber.value);
-    const net = PaymentManager.detectCardNetwork(elCcNumber.value);
-    elCardVisual.className = `credit-card-visual ${net.cssClass}`;
-    elNetworkLabel.textContent = net.label;
-    document.getElementById("cc-preview-number").textContent =
-      elCcNumber.value || "•••• •••• •••• ••••";
-  });
+    const info = PaymentManager.detectCardNetwork(elCcNumber.value);
+    elDetectedNet.textContent = info.label;
 
-  elCcName.addEventListener("input", () => {
-    document.getElementById("cc-preview-name").textContent =
-      elCcName.value.toUpperCase() || "WENREN SCHOLAR";
+    document.getElementById("badge-visa").classList.toggle("active", info.network === "VISA");
+    document.getElementById("badge-mc").classList.toggle("active", info.network === "MASTERCARD");
+    document.getElementById("badge-jcb").classList.toggle("active", info.network === "JCB");
   });
 
   elCcExpiry.addEventListener("input", () => {
     elCcExpiry.value = PaymentManager.formatExpiry(elCcExpiry.value);
-    document.getElementById("cc-preview-exp").textContent = elCcExpiry.value || "MM/YY";
   });
 
-  document.querySelectorAll("[data-testcard]").forEach((btn) => {
+  document.querySelectorAll("[data-fill-card]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const sample = PaymentManager.TEST_CARDS[btn.dataset.testcard];
+      const sample = PaymentManager.TEST_CARDS[btn.dataset.fillCard];
       if (!sample) return;
       elCcNumber.value = sample.number;
       elCcName.value = sample.name;
       elCcExpiry.value = sample.exp;
       elCcCvv.value = sample.cvv;
       elCcNumber.dispatchEvent(new Event("input"));
-      elCcName.dispatchEvent(new Event("input"));
-      elCcExpiry.dispatchEvent(new Event("input"));
       elCcError.classList.add("hidden");
+      SoundFX.click();
     });
   });
 
@@ -631,7 +587,7 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     elCcError.classList.add("hidden");
     elSubmitPayBtn.disabled = true;
-    elSubmitPayBtn.textContent = "銀行授權連線中...";
+    elSubmitPayBtn.textContent = "銀行授權與雲端入帳中...";
 
     const res = await PaymentManager.processCardPayment({
       cardNumber: elCcNumber.value,
@@ -639,7 +595,8 @@ document.addEventListener("DOMContentLoaded", () => {
       expiry: elCcExpiry.value,
       cvv: elCcCvv.value,
       coins: selectedPackage.coins,
-      priceTWD: selectedPackage.price
+      priceTWD: selectedPackage.price,
+      currentState: state
     });
 
     elSubmitPayBtn.disabled = false;
@@ -652,31 +609,29 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    state.coins += res.receipt.coinsAdded;
-    state.paymentHistory.unshift(res.receipt);
-    persistState();
+    updateHeaderStatus();
     SoundFX.coin();
 
     document.getElementById("shop-modal").classList.add("hidden");
     setFeedback(
-      `💳 ${res.receipt.network} 末四碼 ${res.receipt.last4} 刷卡成功！已儲值 ${res.receipt.coinsAdded} 🪙 金幣。`,
+      `💳 ${res.receipt.network} 末四碼 ${res.receipt.last4} 刷卡成功！已儲值 ${res.receipt.coinsAdded} 🪙 金幣並同步雲端。`,
       "success"
     );
   });
 
-  // ================= 使用者登入與帳號管理邏輯 =================
+  // 帳號與跨裝置雲端存檔管理彈窗
   function renderAuthModal() {
     const activeUser = StorageManager.getActiveUsername();
     document.getElementById("auth-active-user").textContent = activeUser
-      ? `${activeUser}（已登入並啟用裝置同步）`
-      : "訪客（本機裝置暫存中）";
+      ? `${activeUser}（已登入雲端帳號，支援跨裝置同步）`
+      : "訪客（僅本機裝置暫存）";
     document.getElementById("auth-stats-summary").textContent =
       `已解鎖 ${state.unlockedChars.length} 字・最高第 ${state.maxStageUnlocked} 階・${state.coins} 🪙`;
 
     const accounts = StorageManager.listSavedAccounts();
     const listEl = document.getElementById("saved-accounts-list");
     if (accounts.length === 0) {
-      listEl.innerHTML = `<div class="empty-hint-msg">本機尚無註冊帳號，在上方輸入帳號與 PIN 碼即可建立！</div>`;
+      listEl.innerHTML = `<div class="empty-hint-msg">此裝置尚無登入紀錄，在上方輸入帳號與密碼即可登入或註冊！</div>`;
       return;
     }
     listEl.innerHTML = accounts
@@ -687,33 +642,38 @@ document.addEventListener("DOMContentLoaded", () => {
           <strong>${acc.username}</strong>
           <span style="color:#666; margin-left:6px;">第 ${acc.maxStage} 階・解鎖 ${acc.unlockedCount} 字・${acc.coins} 🪙</span>
         </div>
-        <button type="button" class="mini-btn" data-switch-user="${acc.username}">切換至此帳號</button>
+        <button type="button" class="mini-btn" data-fill-user="${acc.username}">填入帳號登入</button>
       </div>
     `
       )
       .join("");
 
-    listEl.querySelectorAll("[data-switch-user]").forEach((btn) => {
+    listEl.querySelectorAll("[data-fill-user]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const loaded = StorageManager.switchAccountDirect(btn.dataset.switchUser);
-        if (loaded) {
-          state = loaded;
-          populateStageDropdown();
-          renderAll();
-          renderAuthModal();
-          setFeedback(`已切換至帳號「${btn.dataset.switchUser}」並載入進度！`, "success");
-        }
+        document.getElementById("auth-username").value = btn.dataset.fillUser;
+        const pinInput = document.getElementById("auth-pin");
+        pinInput.value = "";
+        pinInput.focus();
+        const msgEl = document.getElementById("auth-msg");
+        msgEl.textContent = `已填入帳號「${btn.dataset.fillUser}」，請輸入密碼後點擊「登入帳號」。`;
+        msgEl.className = "form-info";
+        msgEl.classList.remove("hidden");
       });
     });
   }
 
-  document.getElementById("auth-form").addEventListener("submit", (e) => {
-    e.preventDefault();
+  document.getElementById("btn-cloud-login").addEventListener("click", async () => {
     const u = document.getElementById("auth-username").value;
     const p = document.getElementById("auth-pin").value;
     const msgEl = document.getElementById("auth-msg");
+    const btn = document.getElementById("btn-cloud-login");
 
-    const res = StorageManager.loginOrRegister(u, p, state);
+    btn.disabled = true;
+    btn.textContent = "雲端驗證中...";
+    const res = await StorageManager.loginUser(u, p);
+    btn.disabled = false;
+    btn.textContent = "登入帳號（載入雲端進度）";
+
     msgEl.textContent = res.message;
     msgEl.className = res.ok ? "form-info" : "form-error";
     msgEl.classList.remove("hidden");
@@ -723,6 +683,32 @@ document.addEventListener("DOMContentLoaded", () => {
       populateStageDropdown();
       renderAll();
       renderAuthModal();
+      setFeedback(`☁️ 已登入「${res.username}」並載入最新雲端進度！`, "success");
+    }
+  });
+
+  document.getElementById("btn-cloud-register").addEventListener("click", async () => {
+    const u = document.getElementById("auth-username").value;
+    const p = document.getElementById("auth-pin").value;
+    const msgEl = document.getElementById("auth-msg");
+    const btn = document.getElementById("btn-cloud-register");
+
+    btn.disabled = true;
+    btn.textContent = "建立雲端存檔中...";
+    const res = await StorageManager.registerUser(u, p, state);
+    btn.disabled = false;
+    btn.textContent = "註冊新帳號（上傳目前進度）";
+
+    msgEl.textContent = res.message;
+    msgEl.className = res.ok ? "form-info" : "form-error";
+    msgEl.classList.remove("hidden");
+
+    if (res.ok) {
+      state = res.progress;
+      populateStageDropdown();
+      renderAll();
+      renderAuthModal();
+      setFeedback(`☁️ 雲端帳號「${res.username}」建立成功！`, "success");
     }
   });
 
@@ -731,13 +717,14 @@ document.addEventListener("DOMContentLoaded", () => {
     populateStageDropdown();
     renderAll();
     renderAuthModal();
+    setFeedback("已登出雲端帳號並切換回訪客模式。", "neutral");
   });
 
-  document.getElementById("btn-export-save").addEventListener("click", () => {
+  document.getElementById("btn-export-json").addEventListener("click", () => {
     StorageManager.exportBackupJSON(state);
   });
 
-  document.getElementById("input-import-save").addEventListener("change", (e) => {
+  document.getElementById("input-import-json").addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (!file) return;
     StorageManager.importBackupJSON(file, (res) => {
@@ -754,121 +741,57 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // ================= 偏旁字理與全 110 階總覽 =================
-  function renderRadicalGuide() {
-    const listEl = document.getElementById("radical-transform-list");
-    listEl.innerHTML = Object.entries(RADICAL_TRANSFORMS)
-      .map(
-        ([base, info]) => `
-        <div class="radical-item">
-          <strong>${base}</strong> → ${info.desc}
-        </div>
-      `
-      )
-      .join("");
-  }
+  // 頁面關閉或切換分頁前，若已登入雲端帳號則立即推送最新狀態
+  window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && StorageManager.isCloudLoggedIn()) {
+      StorageManager.saveCloudDataNow(state);
+    }
+  });
 
-  function renderAllStagesCodex() {
-    const gridEl = document.getElementById("all-stages-grid");
-    gridEl.innerHTML = STAGES_DATA.map((st) => {
-      const unlocked = st.stage <= state.maxStageUnlocked;
-      const done = st.targets.filter((t) => state.unlockedChars.includes(t.char)).length;
-      return `
-        <div class="stage-overview-card ${unlocked ? "unlocked" : "locked"}" data-jump-stage="${st.stage}">
-          <div style="font-weight:700; font-size:0.85rem;">第 ${st.stage} 階・${st.title}</div>
-          <div style="font-size:0.74rem; color:#555; margin:3px 0;">新部件：${st.components.join(" ")}</div>
-          <div style="font-size:0.74rem; font-weight:700; color:${unlocked ? "#286655" : "#888"};">
-            ${unlocked ? `已解鎖 ${done} / ${st.targets.length} 字` : "🔒 尚未解鎖"}
-          </div>
-        </div>
-      `;
-    }).join("");
+  // 全域按鈕綁定
+  document.getElementById("btn-forge").addEventListener("click", executeForge);
+  document.getElementById("btn-swap").addEventListener("click", () => {
+    selectedSlots = [selectedSlots[1], selectedSlots[0]];
+    SoundFX.click();
+    renderSlots();
+  });
+  document.getElementById("btn-clear-slots").addEventListener("click", () => {
+    selectedSlots = [null, null];
+    SoundFX.click();
+    renderSlots();
+    renderRadicals();
+  });
 
-    gridEl.querySelectorAll("[data-jump-stage]").forEach((card) => {
-      card.addEventListener("click", () => {
-        const targetStage = parseInt(card.dataset.jumpStage, 10);
-        if (targetStage > state.maxStageUnlocked) return;
-        state.activeStage = targetStage;
-        persistState();
-        populateStageDropdown();
-        renderAll();
-        document.getElementById("codex-modal").classList.add("hidden");
-      });
-    });
-  }
-
-  // ================= 事件綁定 =================
   elStageSelect.addEventListener("change", () => {
     state.activeStage = parseInt(elStageSelect.value, 10);
     persistState();
     renderAll();
   });
 
-  document.querySelectorAll(".layout-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".layout-btn").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      currentLayout = btn.dataset.layout;
-      renderWorkbench();
-    });
-  });
-
-  document.getElementById("btn-swap-slots").addEventListener("click", () => {
-    if (slots.length >= 2) {
-      [slots[0], slots[1]] = [slots[1], slots[0]];
-      SoundFX.clack();
-      renderWorkbench();
-    }
-  });
-
-  document.getElementById("btn-clear-slots").addEventListener("click", () => {
-    slots = Array(LAYOUT_CONFIG[currentLayout].count).fill("");
-    SoundFX.clack();
-    renderWorkbench();
-  });
-
-  document.getElementById("btn-forge").addEventListener("click", attemptForge);
-  elChestBtn.addEventListener("click", openChestModal);
-
-  document.querySelectorAll(".hint-buy-btn").forEach((btn) => {
-    btn.addEventListener("click", () => buyHint(parseInt(btn.dataset.tier, 10)));
-  });
-
-  document.querySelectorAll(".tab-btn").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".tab-btn").forEach((t) => t.classList.remove("active"));
-      tab.classList.add("active");
-      currentFilter = tab.dataset.filter;
-      renderInventory();
-    });
-  });
-
-  document.getElementById("tile-search").addEventListener("input", (e) => {
-    searchQuery = e.target.value.trim();
-    renderInventory();
-  });
-
+  elRadicalSearch.addEventListener("input", renderRadicals);
   document.getElementById("btn-clear-search").addEventListener("click", () => {
-    searchQuery = "";
-    document.getElementById("tile-search").value = "";
-    renderInventory();
+    elRadicalSearch.value = "";
+    renderRadicals();
   });
 
-  // Modals 開關
-  document.getElementById("btn-open-shop").addEventListener("click", () => {
-    document.getElementById("shop-modal").classList.remove("hidden");
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentCollectionTab = btn.dataset.filter;
+      renderCollection();
+      SoundFX.click();
+    });
   });
+
+  document.getElementById("btn-open-hint").addEventListener("click", () => {
+    renderHintModal();
+    document.getElementById("hint-modal").classList.remove("hidden");
+  });
+  document.getElementById("btn-open-shop").addEventListener("click", openShopModal);
   document.getElementById("btn-open-auth").addEventListener("click", () => {
     renderAuthModal();
     document.getElementById("auth-modal").classList.remove("hidden");
-  });
-  document.getElementById("btn-open-radicals").addEventListener("click", () => {
-    renderRadicalGuide();
-    document.getElementById("radical-modal").classList.remove("hidden");
-  });
-  document.getElementById("btn-open-codex").addEventListener("click", () => {
-    renderAllStagesCodex();
-    document.getElementById("codex-modal").classList.remove("hidden");
   });
 
   document.querySelectorAll("[data-close]").forEach((btn) => {
@@ -879,11 +802,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderAll() {
     updateHeaderStatus();
-    renderInventory();
-    renderWorkbench();
-    renderStageProgressAndCodex();
+    renderRadicals();
+    renderSlots();
+    renderChests();
+    renderCollection();
   }
 
+  // 初始化畫面
   populateStageDropdown();
   renderAll();
-});
+
+  // 開機時自動向雲端拉取最新進度（跨裝置同步）
+  StorageManager.syncFromCloudOnBoot().then((cloudState) => {
+    if (cloudState) {
+      state = cloudState;
+      populateStageDropdown();
+      renderAll();
+    }
+  });
+})();

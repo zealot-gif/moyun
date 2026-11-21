@@ -2,7 +2,7 @@
  * 墨韻活字工坊 - 跨裝置雲端同步與本機雙層暫存引擎 (storage.js)
  */
 
-const GAS_API_URL = "貼上你的_WEB_APP_URL"; // <--- 請貼上部署後的 GAS Web App URL
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxcF-joWiInjdBt9Ea2rGZffkjqhx_g7_fRd0KMnOOpXkJ5EYQmy4W-irbD3rp7-CpSmw/exec";
 
 const StorageManager = (() => {
   const KEYS = {
@@ -21,11 +21,10 @@ const StorageManager = (() => {
 
   function notifySyncStatus(status, text) {
     if (typeof onSyncStatusChangeCallback === "function") {
-      onSyncStatusChangeCallback(status, text); // status: 'local' | 'syncing' | 'synced' | 'error'
+      onSyncStatusChangeCallback(status, text);
     }
   }
 
-  // 將密碼轉為 SHA-256 雜湊值（含非 HTTPS 環境降級保護）
   async function hashPassword(password) {
     const clean = password.trim();
     if (window.crypto && window.crypto.subtle) {
@@ -36,7 +35,6 @@ const StorageManager = (() => {
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
     }
-    // 備援簡易雜湊（僅供非安全連線本機測試）
     let h = 0;
     for (let i = 0; i < clean.length; i++) {
       h = (Math.imul(31, h) + clean.charCodeAt(i)) | 0;
@@ -48,7 +46,6 @@ const StorageManager = (() => {
     return GAS_API_URL && GAS_API_URL.startsWith("https://");
   }
 
-  // 發送請求給 GAS（不加 application/json header，避開 CORS preflight）
   async function callGAS(payload) {
     if (!isCloudConfigured()) {
       return { success: false, offline: true, message: "尚未設定 GAS_API_URL，目前僅使用本機暫存" };
@@ -112,7 +109,6 @@ const StorageManager = (() => {
     return createDefaultProgress();
   }
 
-  // 啟動時自動從雲端拉取最新進度（實現跨裝置無縫接軌）
   async function syncFromCloudOnBoot() {
     const username = localStorage.getItem(KEYS.ACTIVE_USER);
     const passwordHash = localStorage.getItem(KEYS.ACTIVE_HASH);
@@ -145,7 +141,6 @@ const StorageManager = (() => {
     }
   }
 
-  // 立即推送至雲端
   async function saveCloudDataNow(userDataObj, receipt = null) {
     const username = localStorage.getItem(KEYS.ACTIVE_USER);
     const passwordHash = localStorage.getItem(KEYS.ACTIVE_HASH);
@@ -179,15 +174,8 @@ const StorageManager = (() => {
     }
   }
 
-  /**
-   * 儲存進度（本機即時寫入 + 雲端智慧同步）
-   * @param {Object} progress 遊戲狀態物件
-   * @param {Object} options { immediate: boolean, receipt: Object|null }
-   */
   function saveProgress(progress, options = {}) {
     progress.updatedAt = new Date().toISOString();
-
-    // 1. 本機裝置立即寫入
     localStorage.setItem(KEYS.DEVICE_CACHE, JSON.stringify(progress));
 
     const activeUser = getActiveUsername();
@@ -201,7 +189,6 @@ const StorageManager = (() => {
       saveAccountsDB(db);
     }
 
-    // 2. 雲端同步（儲值或寶箱開啟時立即同步，一般操作防抖動 1.5 秒）
     if (!activeUser || !activeHash) {
       notifySyncStatus("local", "本機暫存");
       return;
@@ -219,7 +206,6 @@ const StorageManager = (() => {
     }
   }
 
-  // 1. 註冊雲端與本機帳號
   async function registerUser(username, password, initialData) {
     const cleanName = username.trim();
     if (!cleanName || password.trim().length < 4) {
@@ -248,7 +234,6 @@ const StorageManager = (() => {
       }
     }
 
-    // 寫入本機憑證與快取
     localStorage.setItem(KEYS.ACTIVE_USER, cleanName);
     localStorage.setItem(KEYS.ACTIVE_HASH, passwordHash);
     const db = getAccountsDB();
@@ -263,11 +248,10 @@ const StorageManager = (() => {
       progress: payloadData,
       message: isCloudConfigured()
         ? `雲端帳號「${cleanName}」註冊成功！換裝置登入相同帳密即可同步進度。`
-        : `本機帳號「${cleanName}」建立成功（未設定雲端網址，目前為本機存檔）。`
+        : `本機帳號「${cleanName}」建立成功。`
     };
   }
 
-  // 2. 登入雲端帳號並拉取跨裝置進度
   async function loginUser(username, password) {
     const cleanName = username.trim();
     if (!cleanName || password.trim().length < 4) {
@@ -310,7 +294,6 @@ const StorageManager = (() => {
       }
     }
 
-    // 離線/未設定 GAS 時的本機驗證降級
     const db = getAccountsDB();
     if (!db[cleanName]) {
       return { ok: false, message: "本機找不到此帳號，請先點擊「註冊新帳號」。" };
