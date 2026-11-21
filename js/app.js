@@ -3,6 +3,9 @@
  */
 
 (() => {
+  // 測試刷卡專用密碼（可自行修改）
+  const TEST_CARD_PASSCODE = "8888";
+
   let state = StorageManager.loadProgress();
   let currentLayout = "lr"; // lr | tb | tri | quad | enc
   let slots = [null, null];
@@ -633,8 +636,19 @@
     document.getElementById("cc-visual-exp").textContent = elCcExpiry.value || "MM/YY";
   });
 
+  // 測試刷卡快捷填入（需驗證密碼）
   document.querySelectorAll("[data-fill-card]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      const inputPwd = window.prompt("請輸入測試刷卡密碼：");
+      if (inputPwd === null) return;
+
+      if (inputPwd.trim() !== TEST_CARD_PASSCODE) {
+        elCcError.textContent = "🔒 測試刷卡密碼錯誤，無法填入測試卡號！";
+        elCcError.classList.remove("hidden");
+        SoundFX.error();
+        return;
+      }
+
       const sample = PaymentManager.TEST_CARDS[btn.dataset.fillCard];
       if (!sample) return;
       elCcNumber.value = sample.number;
@@ -652,6 +666,25 @@
   document.getElementById("credit-card-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     elCcError.classList.add("hidden");
+
+    // 若輸入的是內建測試卡號，送出時也需驗證測試授權密碼
+    const rawNum = elCcNumber.value.replace(/\s+/g, "");
+    const isTestCard = Object.values(PaymentManager.TEST_CARDS || {}).some(
+      (c) => c.number.replace(/\s+/g, "") === rawNum
+    );
+
+    if (isTestCard) {
+      const inputPwd = window.prompt("偵測到測試卡號，請輸入測試授權密碼：");
+      if (inputPwd === null) return;
+
+      if (inputPwd.trim() !== TEST_CARD_PASSCODE) {
+        elCcError.textContent = "🔒 測試授權密碼錯誤，刷卡已拒絕！";
+        elCcError.classList.remove("hidden");
+        SoundFX.error();
+        return;
+      }
+    }
+
     elSubmitPayBtn.disabled = true;
     elSubmitPayBtn.textContent = "銀行授權與雲端入帳中...";
 
